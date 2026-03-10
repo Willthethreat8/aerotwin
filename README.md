@@ -1,10 +1,12 @@
-# Projet AeroTwin ✈️
+# Projet AeroTwin 
 
-**Plateforme de Maintenance Prédictive Aéronautique — Architecture Lambda Spatiale** [cite: 18, 19]
+**Plateforme de Maintenance Prédictive Aéronautique — Architecture Lambda Spatiale** 
 
 ## 🎯 Objectif
-Construire une plateforme end-to-end de surveillance de l'usure des moteurs d'une flotte d'avions au départ de Toulouse[cite: 28]. 
-Le système croise des données de capteurs en temps réel, des trajectoires géospatiales et la météo locale pour prédire la durée de vie restante (RUL - Remaining Useful Life) et alerter via une carte 3D[cite: 28, 46, 47].
+Construire le **jumeau numérique** d'une flotte d'avions au départ de Toulouse
+Le système croise des données de capteurs en temps réel, des trajectoires géospatiales et la météo locale pour prédire la durée de vie restante (RUL - Remaining Useful Life) et alerter via une carte 3D.
+
+
 
 ## 🏗️ Stack Technique
 * **Infrastructure & Stockage :** Docker, PostGIS 
