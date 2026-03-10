@@ -1,0 +1,10 @@
+# Environnement Python
+venv/
+__pycache__/
+.ipynb_checkpoints/
+
+# Données brutes (trop lourdes pour GitHub)
+data/
+
+# Fichiers système Mac
+.DS_Store
