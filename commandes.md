@@ -18,3 +18,9 @@
 * `pip install [nom_paquet]` : Installe une bibliothèque Python.
 * `python3 -m pip install --upgrade pip` : Met à jour le gestionnaire d'installation lui-même.
 * `jupyter notebook` : Lance l'interface web pour coder.
+
+## 4. Gestion de versions (Git & GitHub)
+* `git init` : Initialise un suivi Git local dans le dossier du projet.
+* `git add .` : Prépare tous les fichiers modifiés (qui ne sont pas dans `.gitignore`) pour la sauvegarde.
+* `git commit -m "message"` : Valide la sauvegarde avec un message descriptif court.
+* `git push -u origin main` : Envoie le code validé vers le serveur distant GitHub.
