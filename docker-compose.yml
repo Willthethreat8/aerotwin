@@ -1,8 +1,9 @@
-version: '3.8'
+
 
 services:
   postgis:
     image: postgis/postgis:15-3.3
+    platform: linux/amd64
     environment:
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=change_me
