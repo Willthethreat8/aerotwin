@@ -1,10 +1,24 @@
 # Environnement Python
 venv/
+.venv/
 __pycache__/
 .ipynb_checkpoints/
+.pytest_cache/
 
-# Données brutes (trop lourdes pour GitHub)
-data/
+# Secrets et variables d'environnement (ne jamais committer)
+.env
+
+# Données brutes volumineuses — trackées par DVC, pas Git
+data/raw/**/*.h5
+data/raw/*.h5
+data/raw/*.txt
+
+# Données générées — légères, committables
+# data/processed/ → versionné dans Git
+
+# MLflow — tracking local (Phase 4)
+mlruns/
+mlartifacts/
 
 # Fichiers système Mac
 .DS_Store

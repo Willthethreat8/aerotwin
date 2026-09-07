@@ -1,0 +1,43 @@
+# --- Données & manipulation ---
+pandas
+numpy
+
+# --- Géospatial / PostGIS ---
+geopandas
+shapely
+sqlalchemy
+geoalchemy2
+psycopg2-binary
+
+# --- Lecture HDF5 (N-CMAPSS) ---
+h5py
+
+# --- Versioning données (DVC) ---
+dvc
+
+# --- API & parsing météo ---
+requests
+metar              # Phase 7 uniquement — METAR live dashboard (Aviation Weather Center)
+
+# --- Configuration ---
+python-dotenv
+
+# --- Tests ---
+pytest
+
+# --- Exploration ---
+jupyterlab
+
+# --- Phase 4 — ML & experiment tracking ---
+scikit-learn
+xgboost
+mlflow
+
+# --- Roadmap (décommenter au fur et à mesure des phases) ---
+# prefect            # Phase 3 — orchestration
+# dbt-core           # Phase 3 — transformations SQL
+# dbt-postgres       # Phase 3 — adapter PostGIS
+# streamlit          # Phase 6 — dashboard
+# folium             # Phase 6 — cartographie
+# fastapi            # Phase 8 — API de serving
+# uvicorn            # Phase 8 — serveur ASGI

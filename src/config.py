@@ -1,0 +1,55 @@
+"""Configuration centrale du projet AeroTwin.
+
+Toutes les constantes et paramètres vivent ici — jamais en dur dans le code.
+Ce fichier est fourni complet (boilerplate) : lis-le, comprends-le, adapte si besoin.
+"""
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# --- Chemins ---
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DATA_RAW = PROJECT_ROOT / "data" / "raw"
+DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
+
+# --- Dataset NASA N-CMAPSS ---
+NCMAPSS_DS01_PATH = DATA_RAW / "ncmapss" / "N-CMAPSS_DS01-005.h5"
+
+# (Legacy C-MAPSS — conservé pour la clause de repli, cf. ROADMAP.md Phase 3)
+CMAPSS_COLUMNS = (
+    ["engine_id", "cycle", "setting_1", "setting_2", "setting_3"]
+    + [f"sensor_{i}" for i in range(1, 22)]
+)
+FD001_TRAIN_PATH = DATA_RAW / "train_FD001.txt"
+
+# --- Feature engineering ---
+ROLLING_WINDOW = 5
+
+# --- Toulouse-Blagnac (LFBO) ---
+LFBO_LAT = 43.629
+LFBO_LON = 1.367
+
+# --- Météo (Open-Meteo ERA5) ---
+OPEN_METEO_URL = "https://archive-api.open-meteo.com/v1/archive"
+METEO_HOURLY_VARS = "temperature_2m,surface_pressure,windspeed_10m"
+
+# --- Météo live (Aviation Weather Center — Phase 7 uniquement) ---
+METAR_STATION = os.getenv("METAR_STATION", "LFBO")
+
+# --- Base de données ---
+DB_USER = os.getenv("POSTGRES_USER")
+DB_PASSWORD = os.getenv("POSTGRES_PASSWORD")
+DB_HOST = os.getenv("POSTGRES_HOST", "localhost")
+DB_PORT = os.getenv("POSTGRES_PORT", "5432")
+DB_NAME = os.getenv("POSTGRES_DB", "aerotwin_db")
+
+
+def get_db_url() -> str:
+    """Construit l'URL SQLAlchemy de connexion à PostGIS."""
+    return (
+        f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}"
+        f"@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    )

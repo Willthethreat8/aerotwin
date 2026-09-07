@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le moteur derrière les features</title>
+<meta name="description" content="Comment fonctionne un turboréacteur d'avion de ligne, ce qui se passe à chaque phase de vol, et ce que représente physiquement chaque variable du dataset N-CMAPSS.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg:        #F7F5F1;
+    --surface:   #FFFFFF;
+    --surface-2: #EFEAE1;
+    --ink:       #1B242F;
+    --ink-soft:  #566370;
+    --line:      #DBD3C6;
+    --accent:    #1D5FA6;
+    --accent-soft:#E4EDF6;
+
+    --intake:   #3E7CC4;
+    --compress: #B9801F;
+    --burn:     #BE3A22;
+    --turbine:  #7A4A9C;
+
+    --good:  #2E7D51;
+    --warn:  #B26A00;
+
+    --maxw: 43rem;
+    --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+    --font-body: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #11151A;
+      --surface:   #1A1F26;
+      --surface-2: #232A33;
+      --ink:       #E7ECF1;
+      --ink-soft:  #9BA8B4;
+      --line:      #2E3843;
+      --accent:    #6FABE6;
+      --accent-soft:#1D2A38;
+
+      --intake:   #63A0DE;
+      --compress: #E0AB55;
+      --burn:     #E8664B;
+      --turbine:  #B27ED2;
+
+      --good:  #5FB98A;
+      --warn:  #E0A44E;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg:        #11151A;
+    --surface:   #1A1F26;
+    --surface-2: #232A33;
+    --ink:       #E7ECF1;
+    --ink-soft:  #9BA8B4;
+    --line:      #2E3843;
+    --accent:    #6FABE6;
+    --accent-soft:#1D2A38;
+
+    --intake:   #63A0DE;
+    --compress: #E0AB55;
+    --burn:     #E8664B;
+    --turbine:  #B27ED2;
+
+    --good:  #5FB98A;
+    --warn:  #E0A44E;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 1.0625rem;
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .page {
+    max-width: 78rem;
+    margin: 0 auto;
+    padding: clamp(1.5rem, 4vw, 4rem) clamp(1.1rem, 4vw, 3rem) 6rem;
+  }
+
+  @media (min-width: 1080px) {
+    .page {
+      display: grid;
+      grid-template-columns: 13rem minmax(0, var(--maxw));
+      column-gap: 4rem;
+      justify-content: center;
+      align-items: start;
+    }
+  }
+
+  /* ---- Table of contents ---- */
+  .toc {
+    display: none;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+  @media (min-width: 1080px) {
+    .toc {
+      display: block;
+      position: sticky;
+      top: 2rem;
+      border-left: 2px solid var(--line);
+      padding-left: 1rem;
+    }
+  }
+  .toc p {
+    margin: 0 0 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.68rem;
+    color: var(--ink-soft);
+  }
+  .toc ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+  .toc a { color: var(--ink-soft); text-decoration: none; display: block; transition: color 0.15s ease; }
+  .toc a:hover { color: var(--accent); }
+  .toc a b { color: var(--accent); font-weight: 500; margin-right: 0.4rem; }
+
+  /* ---- Masthead ---- */
+  main { min-width: 0; }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 0.72rem;
+    color: var(--accent);
+    margin: 0 0 1.4rem;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-weight: 600;
+    font-size: clamp(2.3rem, 6vw, 3.5rem);
+    line-height: 1.06;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0 0 1rem;
+  }
+
+  .standfirst {
+    font-size: clamp(1.1rem, 2.4vw, 1.28rem);
+    line-height: 1.6;
+    color: var(--ink-soft);
+    margin: 0 0 2.2rem;
+    max-width: 38ch;
+  }
+
+  /* ---- Sections ---- */
+  section { margin-top: 3.5rem; }
+
+  h2 {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-weight: 600;
+    font-size: clamp(1.6rem, 3.6vw, 2.15rem);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin: 0 0 1.2rem;
+    padding-top: 1.4rem;
+    border-top: 2px solid var(--ink);
+    display: flex;
+    gap: 0.9rem;
+    align-items: baseline;
+  }
+  h2 .num {
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--accent);
+    flex: none;
+    transform: translateY(-0.35em);
+  }
+
+  h3 {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 1.12rem;
+    letter-spacing: 0.005em;
+    margin: 2.6rem 0 0.8rem;
+  }
+
+  p { margin: 0 0 1.15rem; }
+  strong { font-weight: 600; }
+
+  a { color: var(--accent); text-underline-offset: 2px; }
+
+  code, .m {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    background: var(--surface-2);
+    padding: 0.1em 0.38em;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  .codelist {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 2;
+    color: var(--ink-soft);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.7rem 0.9rem;
+    overflow-wrap: anywhere;
+  }
+
+  ul { margin: 0 0 1.15rem; padding-left: 1.2rem; }
+  li { margin: 0.3rem 0; }
+  li::marker { color: var(--accent); }
+
+  /* ---- Callouts ---- */
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 1.15rem 1.3rem;
+    margin: 1.8rem 0;
+    font-size: 0.98rem;
+  }
+  .callout :last-child { margin-bottom: 0; }
+  .callout .tag {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-size: 0.66rem;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  .callout.analogy { border-left-color: var(--compress); background: var(--surface-2); }
+  .callout.analogy .tag { color: var(--compress); }
+  .callout.tldr { border-left-width: 3px; }
+
+  /* ---- Figures ---- */
+  figure {
+    margin: 2.2rem 0;
+  }
+  .scroll {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 1.2rem;
+  }
+  .diagram {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-width: 34rem;
+    color: var(--ink);
+  }
+  .diagram text { font-family: var(--font-mono); fill: currentColor; }
+  .d-lg { font-size: 13px; font-weight: 500; }
+  .d-md { font-size: 12px; }
+  .d-sm { font-size: 10.5px; fill: var(--ink-soft); }
+  .d-stn { font-size: 12px; font-weight: 600; fill: var(--accent); }
+  .d-hd { font-family: var(--font-display); font-size: 14px; font-weight: 600; }
+  figcaption {
+    font-size: 0.86rem;
+    color: var(--ink-soft);
+    margin-top: 0.7rem;
+    line-height: 1.5;
+  }
+  figcaption b { color: var(--ink); font-weight: 600; }
+
+  /* ---- Tables ---- */
+  .tw { overflow-x: auto; margin: 1.6rem 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 33rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  th, td {
+    text-align: left;
+    padding: 0.6rem 0.8rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  thead th {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-soft);
+    border-bottom: 2px solid var(--ink);
+  }
+  tbody tr:last-child td { border-bottom: 2px solid var(--ink); }
+  td.code, th.code { font-family: var(--font-mono); white-space: nowrap; }
+  td.code b { font-weight: 500; }
+  .num-col { font-variant-numeric: tabular-nums; }
+
+  .chip {
+    display: inline-block;
+    width: 0.7em; height: 0.7em;
+    border-radius: 3px;
+    margin-right: 0.45em;
+    vertical-align: baseline;
+    transform: translateY(0.04em);
+  }
+  .chip.intake   { background: var(--intake); }
+  .chip.compress { background: var(--compress); }
+  .chip.burn     { background: var(--burn); }
+  .chip.turbine  { background: var(--turbine); }
+  .chip.plain    { background: var(--ink-soft); }
+
+  .yes { color: var(--good); font-weight: 600; }
+  .no  { color: var(--burn); font-weight: 600; }
+
+  /* ---- Theme toggle ---- */
+  .theme-toggle {
+    position: fixed;
+    top: 1rem; right: 1rem;
+    z-index: 20;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.4rem 0.85rem;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .theme-toggle:hover { color: var(--accent); border-color: var(--accent); }
+  .theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  a:focus-visible, .toc a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+  .lede-note {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    border-top: 1px solid var(--line);
+    margin-top: 4rem;
+    padding-top: 1.2rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+
+  /* ---- Print / PDF ---- */
+  @media print {
+    :root {
+      --bg: #FFFFFF; --surface: #FFFFFF; --surface-2: #F2EEE7;
+      --ink: #14181D; --ink-soft: #444B54; --line: #C9C2B5;
+      --accent: #14507F;
+      --intake:#2F6DB6; --compress:#9A6A15; --burn:#A82F1C; --turbine:#653C86;
+    }
+    .theme-toggle, .toc { display: none !important; }
+    .page { display: block; max-width: none; padding: 0; }
+    body { font-size: 10.3pt; line-height: 1.5; }
+    .standfirst { font-size: 12pt; }
+    h1 { font-size: 26pt; }
+    h2 { font-size: 17pt; }
+    h2, h3, figcaption { break-after: avoid; }
+    figure, table, .callout { break-inside: avoid; }
+    .scroll, .tw { overflow: visible; }
+    .diagram { min-width: 0; }
+    table, .diagram { min-width: 0; }
+    a { color: var(--ink); text-decoration: none; }
+    .lede-note { margin-top: 2rem; }
+  }
+</style>
+
+<button class="theme-toggle" type="button" aria-label="Basculer le thème">Thème</button>
+
+<div class="page">
+
+  <aside class="toc" aria-label="Sommaire">
+    <p>Sommaire</p>
+    <ol>
+      <li><a href="#s1"><b>1</b>Le turboréacteur double flux</a></li>
+      <li><a href="#s2"><b>2</b>Ce qui change le long du moteur</a></li>
+      <li><a href="#s3"><b>3</b>Un vol, minute par minute</a></li>
+      <li><a href="#s4"><b>4</b>Le catalogue des features</a></li>
+      <li><a href="#s5"><b>5</b>Comment l'usure devient visible</a></li>
+      <li><a href="#recap"><b>·</b>Récapitulatif</a></li>
+    </ol>
+  </aside>
+
+  <main>
+    <p class="eyebrow">AeroTwin · note de fond</p>
+    <h1>Le moteur derrière les features</h1>
+    <p class="standfirst">Le dataset N-CMAPSS n'est qu'une liste de sigles — <code>T30</code>, <code>Nf</code>, <code>TRA</code>. Voici le monde physique qu'ils décrivent, pour que chaque colonne veuille dire quelque chose.</p>
+
+    <div class="callout tldr">
+      <span class="tag">En une phrase</span>
+      <p>Un moteur d'avion transforme du carburant en poussée en quatre gestes : <strong>aspirer, comprimer, brûler, détendre</strong>. Les variables <code>W</code> décrivent <em>la situation de vol</em> — ce que le moteur subit. Les variables <code>X_s</code> sont <em>les capteurs réels</em> posés entre ces gestes. La <code>RUL</code> est le nombre de vols qu'il reste avant la panne. Tout le reste (<code>X_v</code>, <code>T</code>) est de la cuisine interne du simulateur, qu'on s'interdit d'utiliser.</p>
+    </div>
+
+    <!-- ============================================= -->
+    <section id="s1">
+      <h2><span class="num">1</span> Le turboréacteur double flux</h2>
+
+      <p>Le moteur d'un avion de ligne est un <strong>turboréacteur double flux, double corps</strong>. Décortiquons les deux moitiés de ce nom.</p>
+
+      <h3>« Double flux » : un ventilateur géant devant un petit réacteur</h3>
+
+      <p>Un turboréacteur simple — le « turbojet » des années 1950 — avale de l'air, le comprime, y brûle du kérosène et éjecte le tout très vite par l'arrière. Efficace pour aller vite, mais bruyant et gourmand.</p>
+
+      <div class="callout analogy">
+        <span class="tag">Comparaison</span>
+        <p>Un turbojet, c'est un <strong>sèche-cheveux</strong> : un petit flux d'air très rapide. Un turbofan, c'est le même sèche-cheveux dont on se sert juste pour faire tourner un <strong>gros ventilateur de plafond</strong> monté devant. Le ventilateur brasse énormément d'air lentement — c'est bien plus efficace pour avancer, comme une hélice de bateau qui pousse beaucoup d'eau doucement plutôt qu'un jet-ski qui en crache peu très fort.</p>
+      </div>
+
+      <p>Dans un turbofan, l'énorme soufflante (le <em>fan</em>) à l'avant sépare l'air en deux :</p>
+      <ul>
+        <li>le <strong>flux froid</strong> (~85 % de l'air) contourne le cœur du moteur et ressort tel quel — il fournit <strong>l'essentiel de la poussée</strong>, sans jamais être brûlé ;</li>
+        <li>le <strong>flux chaud</strong> (~15 %) entre dans le cœur, où il est comprimé, brûlé, détendu. Son seul rôle : produire l'énergie qui fait tourner le fan.</li>
+      </ul>
+
+      <figure>
+        <div class="scroll">
+          <svg class="diagram" viewBox="0 0 960 400" role="img" aria-label="Coupe d'un turboréacteur double flux : entrée d'air, fan, compresseur basse pression, compresseur haute pression, chambre de combustion, turbine haute pression, turbine basse pression, tuyère, avec le conduit de bypass au-dessus et les deux arbres BP et HP en dessous.">
+            <defs>
+              <marker id="arrow1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+              </marker>
+            </defs>
+
+            <!-- section name labels, staggered on two rows -->
+            <g text-anchor="middle">
+              <text class="d-hd" x="149" y="86">FAN</text>
+              <text class="d-hd" x="234" y="108">LPC</text>
+              <text class="d-hd" x="385" y="86">HPC</text>
+              <text class="d-hd" x="507" y="108">CHAMBRE</text>
+              <text class="d-hd" x="577" y="86">HPT</text>
+              <text class="d-hd" x="685" y="108">LPT</text>
+              <text class="d-hd" x="820" y="86">TUYÈRE</text>
+            </g>
+
+            <!-- bypass duct -->
+            <rect x="168" y="122" width="574" height="30" fill="var(--intake)" fill-opacity="0.13"/>
+            <path d="M168,122 L742,122 L804,152" fill="none" stroke="var(--intake)" stroke-width="1.4" stroke-dasharray="2 3"/>
+            <path d="M168,152 L700,152" fill="none" stroke="var(--intake)" stroke-width="1.4" stroke-dasharray="2 3"/>
+            <text class="d-sm" x="178" y="140" fill="var(--intake)">flux froid — ≈ 85 % de l'air contourne le cœur</text>
+
+            <!-- intake cone -->
+            <path d="M50,178 L130,152 L130,268 L50,242 Z" fill="var(--intake)" fill-opacity="0.26" stroke="currentColor" stroke-width="1"/>
+            <!-- fan -->
+            <rect x="130" y="120" width="38" height="180" rx="3" fill="var(--intake)" fill-opacity="0.5" stroke="currentColor" stroke-width="1"/>
+            <!-- LPC -->
+            <path d="M168,160 L300,172 L300,248 L168,260 Z" fill="var(--compress)" fill-opacity="0.28" stroke="currentColor" stroke-width="1"/>
+            <!-- HPC (taper toward combustor) -->
+            <path d="M300,172 L470,192 L470,228 L300,248 Z" fill="var(--compress)" fill-opacity="0.55" stroke="currentColor" stroke-width="1"/>
+            <!-- combustor -->
+            <rect x="470" y="188" width="75" height="44" fill="var(--burn)" fill-opacity="0.5" stroke="currentColor" stroke-width="1"/>
+            <circle cx="489" cy="210" r="4.5" fill="var(--burn)"/>
+            <circle cx="507" cy="210" r="4.5" fill="var(--burn)"/>
+            <circle cx="525" cy="210" r="4.5" fill="var(--burn)"/>
+            <!-- HPT -->
+            <path d="M545,188 L610,192 L610,228 L545,232 Z" fill="var(--turbine)" fill-opacity="0.55" stroke="currentColor" stroke-width="1"/>
+            <!-- LPT (expand) -->
+            <path d="M610,192 L760,162 L760,258 L610,228 Z" fill="var(--turbine)" fill-opacity="0.3" stroke="currentColor" stroke-width="1"/>
+            <!-- nozzle -->
+            <path d="M760,172 L872,194 L872,226 L760,248 Z" fill="var(--turbine)" fill-opacity="0.48" stroke="currentColor" stroke-width="1"/>
+
+            <!-- BP shaft (long, inner) -->
+            <line x1="150" y1="210" x2="700" y2="210" stroke="currentColor" stroke-width="1.6" stroke-dasharray="6 3"/>
+            <!-- HP shaft (short sleeve) -->
+            <line x1="320" y1="204" x2="592" y2="204" stroke="currentColor" stroke-width="2.4"/>
+            <line x1="320" y1="216" x2="592" y2="216" stroke="currentColor" stroke-width="2.4"/>
+
+            <!-- airflow in / exhaust out -->
+            <line x1="18" y1="210" x2="46" y2="210" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrow1)"/>
+            <text class="d-sm" x="12" y="198">air</text>
+            <line x1="878" y1="228" x2="908" y2="228" stroke="currentColor" stroke-width="1.5" marker-end="url(#arrow1)"/>
+            <text class="d-sm" x="906" y="200" text-anchor="end" fill="var(--turbine)">gaz d'échappement</text>
+
+            <!-- station axis -->
+            <line x1="50" y1="322" x2="800" y2="322" stroke="var(--line)" stroke-width="1"/>
+            <g text-anchor="middle">
+              <line x1="130" y1="317" x2="130" y2="327" stroke="var(--accent)" stroke-width="1.5"/><text class="d-stn" x="130" y="342">2</text>
+              <line x1="180" y1="317" x2="180" y2="327" stroke="var(--accent)" stroke-width="1.5"/><text class="d-stn" x="180" y="342">21</text>
+              <line x1="300" y1="317" x2="300" y2="327" stroke="var(--accent)" stroke-width="1.5"/><text class="d-stn" x="300" y="342">24</text>
+              <line x1="470" y1="317" x2="470" y2="327" stroke="var(--accent)" stroke-width="1.5"/><text class="d-stn" x="463" y="342">30</text>
+              <line x1="545" y1="317" x2="545" y2="327" stroke="var(--accent)" stroke-width="1.5"/><text class="d-stn" x="552" y="342">40</text>
+              <line x1="610" y1="317" x2="610" y2="327" stroke="var(--accent)" stroke-width="1.5"/><text class="d-stn" x="610" y="342">48</text>
+              <line x1="760" y1="317" x2="760" y2="327" stroke="var(--accent)" stroke-width="1.5"/><text class="d-stn" x="760" y="342">50</text>
+            </g>
+
+            <!-- shaft legend -->
+            <g>
+              <line x1="50" y1="366" x2="86" y2="366" stroke="currentColor" stroke-width="1.6" stroke-dasharray="6 3"/>
+              <text class="d-sm" x="94" y="370">arbre BP · N1 = Nf  (fan + LPC + LPT)</text>
+              <line x1="360" y1="362" x2="396" y2="362" stroke="currentColor" stroke-width="2.4"/>
+              <line x1="360" y1="370" x2="396" y2="370" stroke="currentColor" stroke-width="2.4"/>
+              <text class="d-sm" x="404" y="370">arbre HP · N2 = Nc  (HPC + HPT), plus rapide</text>
+            </g>
+            <text class="d-sm" x="50" y="392">« numéros de station » = la position d'un capteur dans le moteur · un capteur = lettre (T / P) + station</text>
+          </svg>
+        </div>
+        <figcaption><b>Le trajet de l'air, de gauche à droite.</b> Le fan envoie ~85 % de l'air autour du cœur (flux froid, en bleu). Les 15 % restants traversent les quatre gestes : comprimer (ambre), brûler (rouge), détendre (violet). L'arbre BP (traits) et l'arbre HP (double trait plein) tournent indépendamment.</figcaption>
+      </figure>
+
+      <h3>« Double corps » : deux arbres qui tournent à des vitesses différentes</h3>
+
+      <p>À l'intérieur du cœur, il y a <strong>deux arbres emboîtés qui ne se touchent pas</strong>, chacun reliant une turbine au compresseur qu'elle entraîne :</p>
+      <ul>
+        <li>l'<strong>arbre BP</strong> (basse pression) relie le fan + le compresseur BP à la turbine BP. Sa vitesse s'appelle <strong>N1</strong>, notée <code>Nf</code> dans le dataset ;</li>
+        <li>l'<strong>arbre HP</strong> (haute pression) relie le compresseur HP à la turbine HP. Sa vitesse s'appelle <strong>N2</strong>, notée <code>Nc</code>. Il tourne plus vite.</li>
+      </ul>
+
+      <figure>
+        <div class="scroll">
+          <svg class="diagram" viewBox="0 0 720 250" role="img" aria-label="Schéma des deux arbres : l'arbre BP relie fan, LPC et LPT et tourne à N1 ; l'arbre HP relie HPC et HPT et tourne à N2, plus vite.">
+            <!-- BP spool -->
+            <line x1="80" y1="70" x2="620" y2="70" stroke="currentColor" stroke-width="2"/>
+            <g text-anchor="middle">
+              <rect x="80" y="52" width="70" height="36" rx="4" fill="var(--intake)" fill-opacity="0.5" stroke="currentColor"/>
+              <text class="d-md" x="115" y="74">FAN</text>
+              <rect x="170" y="52" width="70" height="36" rx="4" fill="var(--compress)" fill-opacity="0.3" stroke="currentColor"/>
+              <text class="d-md" x="205" y="74">LPC</text>
+              <rect x="540" y="52" width="80" height="36" rx="4" fill="var(--turbine)" fill-opacity="0.3" stroke="currentColor"/>
+              <text class="d-md" x="580" y="74">LPT</text>
+            </g>
+            <text class="d-lg" x="80" y="36" fill="var(--intake)">Arbre BP — vitesse N1 (Nf)</text>
+            <text class="d-sm" x="80" y="112">la vitesse que le pilote règle pour obtenir une poussée</text>
+
+            <!-- HP spool -->
+            <line x1="300" y1="170" x2="470" y2="170" stroke="currentColor" stroke-width="2.6"/>
+            <g text-anchor="middle">
+              <rect x="300" y="152" width="80" height="36" rx="4" fill="var(--compress)" fill-opacity="0.55" stroke="currentColor"/>
+              <text class="d-md" x="340" y="174">HPC</text>
+              <rect x="410" y="152" width="60" height="36" rx="4" fill="var(--turbine)" fill-opacity="0.55" stroke="currentColor"/>
+              <text class="d-md" x="440" y="174">HPT</text>
+            </g>
+            <text class="d-lg" x="300" y="136" fill="var(--turbine)">Arbre HP — vitesse N2 (Nc)</text>
+            <text class="d-sm" x="300" y="212">le « générateur de gaz » — tourne plus vite, dose le carburant</text>
+          </svg>
+        </div>
+        <figcaption><b>Deux moteurs rotatifs indépendants.</b> Chaque turbine ne fait qu'entraîner son propre compresseur. <code>Nf</code> et <code>Nc</code> ne sont pas synchronisées — elles montent et descendent chacune de leur côté selon la demande.</figcaption>
+      </figure>
+
+      <div class="callout analogy">
+        <span class="tag">Comparaison</span>
+        <p>Comme <strong>deux platines vinyle posées sur le même axe central</strong> sans être solidaires : on pose l'aiguille sur chacune, et chacune trouve sa vitesse de croisière. Accélérer l'une n'entraîne pas mécaniquement l'autre — elles ne sont couplées que par l'air qui passe de l'une à l'autre.</p>
+      </div>
+    </section>
+
+    <!-- ============================================= -->
+    <section id="s2">
+      <h2><span class="num">2</span> Ce qui change le long du moteur</h2>
+
+      <p>À mesure que l'air avance de la station 2 (entrée) à la station 50 (sortie), sa <strong>pression</strong> et sa <strong>température</strong> montent puis redescendent. Les capteurs <code>X_s</code> sont posés à des endroits précis de cette courbe.</p>
+
+      <div class="callout analogy">
+        <span class="tag">Comparaison</span>
+        <p>Gonfler un pneu de vélo à la pompe : au bout de quelques coups, <strong>le corps de la pompe est chaud</strong>. Comprimer un gaz le réchauffe, sans aucune flamme. Dans le moteur, à la sortie du compresseur HP (<code>T30</code>), l'air atteint déjà <strong>~550 °C uniquement par compression</strong> — avant qu'une seule goutte de kérosène ne brûle.</p>
+      </div>
+
+      <figure>
+        <div class="scroll">
+          <svg class="diagram" viewBox="0 0 820 430" role="img" aria-label="Courbes de pression et de température le long du moteur, de la station 2 à la station 50. La pression monte fortement jusqu'à la sortie du compresseur HP puis chute dans les turbines. La température monte doucement par compression, fait un pic dans la chambre de combustion, puis redescend.">
+            <defs>
+              <marker id="arrow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+                <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+              </marker>
+            </defs>
+
+            <!-- axes -->
+            <line x1="70" y1="40" x2="70" y2="350" stroke="currentColor" stroke-width="1.2"/>
+            <line x1="70" y1="350" x2="780" y2="350" stroke="currentColor" stroke-width="1.2"/>
+            <text class="d-sm" x="46" y="28" text-anchor="start">niveau (échelle relative) ↑</text>
+
+            <!-- combustor band -->
+            <rect x="430" y="40" width="70" height="310" fill="var(--burn)" fill-opacity="0.10"/>
+            <text class="d-sm" x="465" y="54" text-anchor="middle" fill="var(--burn)">combustion</text>
+
+            <!-- station ticks -->
+            <g text-anchor="middle">
+              <text class="d-stn" x="90"  y="368">2</text>
+              <text class="d-stn" x="220" y="368">24</text>
+              <text class="d-stn" x="430" y="368">30</text>
+              <text class="d-stn" x="500" y="368">40</text>
+              <text class="d-stn" x="590" y="368">48</text>
+              <text class="d-stn" x="760" y="368">50</text>
+            </g>
+            <text class="d-sm" x="425" y="392" text-anchor="middle">position dans le moteur  →</text>
+
+            <!-- pressure line (solid) -->
+            <polyline points="90,322 160,300 220,262 430,90 500,104 590,210 760,300"
+                      fill="none" stroke="var(--accent)" stroke-width="2.4"/>
+            <!-- temperature line (dashed) -->
+            <polyline points="90,330 160,322 220,300 430,238 500,70 590,150 760,214"
+                      fill="none" stroke="var(--burn)" stroke-width="2.4" stroke-dasharray="7 4"/>
+
+            <!-- sensor dots: temperature -->
+            <g>
+              <circle cx="220" cy="300" r="4.5" fill="var(--burn)"/><text class="d-sm" x="220" y="292" text-anchor="middle">T24</text>
+              <circle cx="430" cy="238" r="4.5" fill="var(--burn)"/><text class="d-sm" x="415" y="232" text-anchor="end">T30</text>
+              <circle cx="500" cy="70" r="4.5" fill="none" stroke="var(--burn)" stroke-width="1.5"/><text class="d-sm" x="512" y="66">T40 — pas de capteur</text>
+              <circle cx="590" cy="150" r="4.5" fill="var(--burn)"/><text class="d-sm" x="600" y="146">T48</text>
+              <circle cx="760" cy="214" r="4.5" fill="var(--burn)"/><text class="d-sm" x="760" y="206" text-anchor="middle">T50 · EGT</text>
+            </g>
+            <!-- sensor dots: pressure -->
+            <g>
+              <circle cx="90" cy="322" r="4.5" fill="var(--accent)"/><text class="d-sm" x="98" y="336">P2</text>
+              <circle cx="220" cy="262" r="4.5" fill="var(--accent)"/><text class="d-sm" x="220" y="254" text-anchor="middle">P24</text>
+              <circle cx="430" cy="90" r="4.5" fill="var(--accent)"/><text class="d-sm" x="418" y="86" text-anchor="end">Ps30</text>
+              <circle cx="500" cy="104" r="4.5" fill="var(--accent)"/><text class="d-sm" x="512" y="108">P40</text>
+              <circle cx="760" cy="300" r="4.5" fill="var(--accent)"/><text class="d-sm" x="760" y="314" text-anchor="middle">P50</text>
+            </g>
+
+            <!-- legend -->
+            <line x1="90" y1="410" x2="130" y2="410" stroke="var(--accent)" stroke-width="2.4"/>
+            <text class="d-sm" x="138" y="414">pression</text>
+            <line x1="240" y1="410" x2="280" y2="410" stroke="var(--burn)" stroke-width="2.4" stroke-dasharray="7 4"/>
+            <text class="d-sm" x="288" y="414">température</text>
+          </svg>
+        </div>
+        <figcaption><b>La pression culmine à la sortie du compresseur HP</b> (<code>Ps30</code>, ~30–40 bar), puis les turbines la font chuter en récupérant de l'énergie. <b>La température fait un pic dans la chambre</b> (~1500 °C) là où, justement, aucune sonde ne survit : <code>T40</code> est donc un capteur <em>virtuel</em>.</figcaption>
+      </figure>
+
+      <h3>Où sont posés les capteurs</h3>
+
+      <div class="tw">
+        <table>
+          <thead>
+            <tr><th class="code">Station</th><th>Endroit dans le moteur</th><th>Capteurs N-CMAPSS</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="code">2</td><td><span class="chip intake"></span>entrée du fan</td><td class="code">T2, P2</td></tr>
+            <tr><td class="code">15</td><td><span class="chip intake"></span>conduit de bypass (flux froid)</td><td class="code">P15</td></tr>
+            <tr><td class="code">21</td><td><span class="chip compress"></span>sortie fan / entrée LPC</td><td class="code">P21</td></tr>
+            <tr><td class="code">24</td><td><span class="chip compress"></span>sortie LPC / entrée HPC</td><td class="code">T24, P24</td></tr>
+            <tr><td class="code">30</td><td><span class="chip compress"></span>sortie HPC — « refoulement compresseur »</td><td class="code">T30, Ps30</td></tr>
+            <tr><td class="code">40</td><td><span class="chip burn"></span>sortie chambre / entrée HPT — point le plus chaud</td><td class="code">P40 <span class="d-sm">(T40 → virtuel)</span></td></tr>
+            <tr><td class="code">48</td><td><span class="chip turbine"></span>sortie HPT / entrée LPT</td><td class="code">T48</td></tr>
+            <tr><td class="code">50</td><td><span class="chip turbine"></span>sortie LPT — l'échappement</td><td class="code">T50, P50</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>Retiens la logique : <strong>le numéro monte quand on avance dans le moteur</strong>. <code>T24</code> est plus « en amont » que <code>T30</code>, qui est plus en amont que <code>T48</code>, etc. Un capteur = une lettre (<code>T</code> pour température, <code>P</code> pour pression, <code>Ps</code> pour pression statique) suivie de sa station.</p>
+    </section>
+
+    <!-- ============================================= -->
+    <section id="s3">
+      <h2><span class="num">3</span> Un vol, minute par minute</h2>
+
+      <p>Dans le dataset, <strong>une ligne <code>cycle</code> = un vol complet</strong>, échantillonné à 1 Hz (une mesure par seconde). Voici ce que fait le moteur à chaque phase.</p>
+
+      <figure>
+        <div class="scroll">
+          <svg class="diagram" viewBox="0 0 900 520" role="img" aria-label="Évolution sur un vol de l'altitude, de la manette des gaz, du régime N1, de l'EGT et du débit carburant, à travers les phases roulage, décollage, montée, croisière, descente, approche. Le décollage fait un pic sur tout ; la croisière est plate.">
+            <!-- phase bands -->
+            <g>
+              <rect x="60"  y="62" width="80"  height="352" fill="currentColor" fill-opacity="0.035"/>
+              <rect x="140" y="62" width="60"  height="352" fill="var(--burn)" fill-opacity="0.13"/>
+              <rect x="200" y="62" width="160" height="352" fill="currentColor" fill-opacity="0.035"/>
+              <rect x="360" y="62" width="290" height="352" fill="var(--accent)" fill-opacity="0.07"/>
+              <rect x="650" y="62" width="110" height="352" fill="currentColor" fill-opacity="0.035"/>
+              <rect x="760" y="62" width="100" height="352" fill="currentColor" fill-opacity="0.02"/>
+            </g>
+            <g text-anchor="middle" class="d-sm">
+              <text x="100" y="54">roulage</text>
+              <text x="170" y="54" fill="var(--burn)">décollage</text>
+              <text x="280" y="54">montée</text>
+              <text x="505" y="54" fill="var(--accent)">croisière</text>
+              <text x="705" y="54">descente</text>
+              <text x="810" y="54">approche</text>
+            </g>
+
+            <!-- row 1: alt -->
+            <text class="d-lg" x="60" y="80">alt — altitude</text>
+            <line x1="60" y1="132" x2="860" y2="132" stroke="var(--line)"/>
+            <polyline points="60,130 140,130 200,124 360,86 650,86 760,116 845,130 860,130" fill="none" stroke="currentColor" stroke-width="2"/>
+
+            <!-- row 2: TRA -->
+            <text class="d-lg" x="60" y="168">TRA — manette des gaz</text>
+            <line x1="60" y1="224" x2="860" y2="224" stroke="var(--line)"/>
+            <polyline points="60,220 139,218 142,178 200,178 206,192 360,200 650,200 653,222 760,214 795,208 815,196 826,214 860,220"
+                      fill="none" stroke="var(--compress)" stroke-width="2"/>
+
+            <!-- row 3: Nf -->
+            <text class="d-lg" x="60" y="260">Nf — régime N1</text>
+            <line x1="60" y1="316" x2="860" y2="316" stroke="var(--line)"/>
+            <polyline points="60,312 139,310 142,270 200,272 207,286 360,292 650,292 653,312 760,306 826,310 860,312"
+                      fill="none" stroke="var(--intake)" stroke-width="2"/>
+
+            <!-- row 4: T50 + Wf -->
+            <text class="d-lg" x="60" y="352">T50 (EGT) &amp; Wf</text>
+            <line x1="300" y1="348" x2="322" y2="348" stroke="var(--burn)" stroke-width="2"/>
+            <text class="d-sm" x="328" y="352" fill="var(--burn)">T50</text>
+            <line x1="366" y1="348" x2="388" y2="348" stroke="var(--turbine)" stroke-width="2" stroke-dasharray="4 3"/>
+            <text class="d-sm" x="394" y="352" fill="var(--turbine)">Wf</text>
+            <line x1="60" y1="408" x2="860" y2="408" stroke="var(--line)"/>
+            <polyline points="60,406 139,402 142,362 200,366 211,384 360,394 650,394 653,407 760,402 860,406"
+                      fill="none" stroke="var(--burn)" stroke-width="2"/>
+            <polyline points="60,408 139,405 145,367 200,371 215,388 360,398 650,398 655,408 760,405 860,408"
+                      fill="none" stroke="var(--turbine)" stroke-width="1.6" stroke-dasharray="4 3"/>
+
+            <!-- annotations -->
+            <rect x="60" y="432" width="12" height="12" fill="var(--burn)" fill-opacity="0.5"/>
+            <text class="d-sm" x="80" y="442" fill="var(--burn)">décollage — pic thermique + mécanique : c'est ici que le moteur s'use</text>
+            <rect x="60" y="456" width="12" height="12" fill="var(--accent)" fill-opacity="0.5"/>
+            <text class="d-sm" x="80" y="466">croisière — quasi-stable : meilleure fenêtre pour lire une dérive lente d'usure</text>
+
+            <text class="d-sm" x="60" y="498">une ligne <tspan font-style="italic">cycle</tspan> du dataset = tout ce vol · résumé en mean / std / min / max</text>
+          </svg>
+        </div>
+        <figcaption><b>Tout bouge ensemble.</b> La manette (<code>TRA</code>) commande, le régime <code>N1</code> suit, l'<code>EGT</code> et le carburant suivent. Le décollage sollicite tout au maximum ; la croisière est longue et calme — c'est là que les capteurs sont assez stables pour révéler l'usure.</figcaption>
+      </figure>
+
+      <div class="tw">
+        <table>
+          <thead>
+            <tr><th>Phase</th><th class="code">alt</th><th class="code">TRA</th><th>Le moteur…</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Roulage / ralenti</td><td class="code">sol</td><td class="code">~ ralenti</td><td>N1, N2, EGT, carburant au plus bas</td></tr>
+            <tr><td><strong>Décollage</strong></td><td class="code">sol</td><td class="code">~ 100 %</td><td>tout au maximum ; <code>T30</code>/<code>T48</code>/<code>T50</code> au plus haut du vol — <strong>c'est ici que le moteur s'abîme</strong></td></tr>
+            <tr><td>Montée</td><td class="code">↑ ~35 000 ft</td><td class="code">élevé</td><td>l'altitude monte → <code>P2</code>, <code>T2</code> chutent → toutes les pressions aval baissent</td></tr>
+            <tr><td><strong>Croisière</strong></td><td class="code">~35–41 000 ft</td><td class="code">modéré</td><td>régime quasi constant → <strong>données les plus propres</strong> pour suivre la dégradation ; sa durée dépend de <code>Fc</code></td></tr>
+            <tr><td>Descente</td><td class="code">↓</td><td class="code">~ ralenti</td><td>N1/N2/EGT/carburant s'effondrent, le moteur « se laisse porter »</td></tr>
+            <tr><td>Approche</td><td class="code">↓ sol</td><td class="code">partiel</td><td>poussée intermédiaire, prêt à remettre les gaz</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <span class="tag">Lien avec la Phase 3</span>
+        <p>On ne garde pas les milliers de points d'un vol. On résume chaque <code>cycle</code> en quelques statistiques — <code>mean</code>, <code>std</code>, <code>min</code>, <code>max</code> — comme on garderait les <em>constantes vitales</em> d'un vol plutôt que l'enregistrement complet : <code>T50_max</code> ≈ le pic au décollage, <code>alt_max</code> ≈ l'altitude de croisière, <code>Wf_mean</code> ≈ la conso moyenne, <code>TRA_std</code> ≈ combien la manette a bougé.</p>
+      </div>
+    </section>
+
+    <!-- ============================================= -->
+    <section id="s4">
+      <h2><span class="num">4</span> Le catalogue des features</h2>
+
+      <h3><span class="chip plain"></span>W — les conditions de vol (les entrées)</h3>
+      <p>Ce que le moteur <em>subit</em>. Ces variables ne dépendent pas de l'usure ; elles décrivent la situation. Ce sont les entrées du modèle physique — et des features légitimes pour le ML.</p>
+
+      <div class="tw">
+        <table>
+          <thead><tr><th class="code">Code</th><th>En clair</th><th>Comparaison</th><th>Rôle pour la RUL</th></tr></thead>
+          <tbody>
+            <tr><td class="code"><b>alt</b></td><td>Altitude de vol (ft). L'air se raréfie en montant.</td><td>respirer au sommet d'une montagne : moins d'air à chaque inspiration</td><td>fixe le niveau de tous les capteurs → à neutraliser avant de lire l'usure</td></tr>
+            <tr><td class="code"><b>Mach</b></td><td>Vitesse de l'avion ÷ vitesse du son (0.80 = 80 %).</td><td>souffler dans une paille en courant : l'air se comprime tout seul à l'entrée</td><td>modifie la pression « gratuite » disponible à l'entrée moteur</td></tr>
+            <tr><td class="code"><b>TRA</b></td><td>Angle physique de la manette des gaz dans le cockpit : 0 = ralenti, 100 = plein gaz.</td><td>la pédale d'accélérateur : le pilote demande une puissance, le calculateur dose le carburant</td><td>proxy direct de la puissance demandée → la référence pour juger si un capteur « dérive »</td></tr>
+            <tr><td class="code"><b>T2</b></td><td>Température de l'air entrant dans le fan (°R), après échauffement dû à la vitesse.</td><td>on ne peut pas juger d'une fièvre sans connaître la température de la pièce — <code>T2</code> est cette référence</td><td>toutes les autres températures se lisent <em>relativement</em> à <code>T2</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3><span class="chip compress"></span>X_s — les capteurs physiques réels (14 features)</h3>
+      <p>Des sondes qui existent vraiment sur un moteur en service. Températures en °R (Rankine : °R = °F + 459,67 ; ~289 °R en dessous du °C ×1,8), pressions en psia, régimes en tr/min.</p>
+
+      <p class="m" style="background:none;padding:0;color:var(--ink-soft);margin-bottom:0.4rem">Températures — dans l'ordre où l'air les rencontre</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th class="code">Code</th><th>Où / quoi</th><th>Ce qu'il révèle sur l'usure</th></tr></thead>
+          <tbody>
+            <tr><td class="code"><span class="chip compress"></span><b>T24</b></td><td>sortie du compresseur BP</td><td>santé du compresseur basse pression</td></tr>
+            <tr><td class="code"><span class="chip compress"></span><b>T30</b></td><td>sortie du compresseur HP (« refoulement ») — ~550 °C <em>avant</em> toute combustion</td><td>un HPC usé ou encrassé → <code>T30</code> anormale pour la même compression</td></tr>
+            <tr><td class="code"><span class="chip turbine"></span><b>T48</b></td><td>sortie de la turbine HP</td><td>proxy mesurable de la température turbine (<code>T40</code> non mesurable)</td></tr>
+            <tr><td class="code"><span class="chip turbine"></span><b>T50</b></td><td>sortie de la turbine BP = <strong>EGT</strong>, la température des gaz d'échappement</td><td><strong>l'indicateur de santé n°1 en exploitation.</strong> Dérive à la hausse = usure. C'est la courbe de la cellule 5 du notebook.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="m" style="background:none;padding:0;color:var(--ink-soft);margin:1.4rem 0 0.4rem">Pressions</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th class="code">Code</th><th>Où / quoi</th><th>Ce qu'il révèle</th></tr></thead>
+          <tbody>
+            <tr><td class="code"><span class="chip intake"></span><b>P2</b></td><td>entrée du fan (ambiante + effet de vitesse)</td><td>référence basse pression du cycle</td></tr>
+            <tr><td class="code"><span class="chip intake"></span><b>P15</b></td><td>conduit de bypass (flux froid)</td><td>état du fan côté flux froid</td></tr>
+            <tr><td class="code"><span class="chip compress"></span><b>P21</b></td><td>sortie du fan, côté cœur</td><td>compression fournie par le fan</td></tr>
+            <tr><td class="code"><span class="chip compress"></span><b>P24</b></td><td>sortie du compresseur BP</td><td>compression basse pression</td></tr>
+            <tr><td class="code"><span class="chip compress"></span><b>Ps30</b></td><td>sortie du compresseur HP, pression <strong>statique</strong> — le sommet de pression du moteur (~30–40 bar)</td><td>avec <code>T30</code>, décrit tout le travail du HPC ; indicateur clé</td></tr>
+            <tr><td class="code"><span class="chip burn"></span><b>P40</b></td><td>sortie de la chambre / entrée turbine HP</td><td>charge sur la turbine HP</td></tr>
+            <tr><td class="code"><span class="chip turbine"></span><b>P50</b></td><td>sortie de la turbine BP</td><td>contre-pression à l'échappement</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="d-sm" style="fill:none;color:var(--ink-soft);font-family:var(--font-mono);font-size:0.78rem;margin-top:0.5rem">Le « s » de <code>Ps30</code> = pression <em>statique</em> : mesurée à la paroi, sans compter l'énergie du mouvement de l'air. Les autres <code>P</code> sont des pressions <em>totales</em>.</p>
+
+      <p class="m" style="background:none;padding:0;color:var(--ink-soft);margin:1.4rem 0 0.4rem">Régimes de rotation &amp; carburant</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th class="code">Code</th><th>Où / quoi</th><th>Ce qu'il révèle</th></tr></thead>
+          <tbody>
+            <tr><td class="code"><b>Nf</b></td><td>régime de l'arbre BP = <strong>N1</strong> (vitesse du fan)</td><td>pour une poussée donnée, N1 est la cible ; les autres capteurs dérivent <em>autour</em></td></tr>
+            <tr><td class="code"><b>Nc</b></td><td>régime de l'arbre HP = <strong>N2</strong> (le générateur de gaz, plus rapide)</td><td>monte légèrement quand le moteur s'use, pour compenser les pertes</td></tr>
+            <tr><td class="code"><b>Wf</b></td><td>débit de carburant (masse de kérosène par seconde)</td><td>pour une même poussée, <code>Wf</code> grimpe avec l'usure — signature classique</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout analogy">
+        <span class="tag">Comparaison</span>
+        <p><code>T50</code>, <code>Wf</code> et <code>Nc</code> qui montent lentement vol après vol, c'est <strong>un coureur dont la fréquence cardiaque et la consommation d'eau nécessaires pour tenir exactement la même allure augmentent de mois en mois</strong>. Même performance affichée, plus d'effort en coulisses. Le modèle doit repérer ce surcoût.</p>
+      </div>
+
+      <h3><span class="chip plain" style="background:var(--ink-soft);opacity:.4"></span>X_v — les capteurs virtuels (14, exclus)</h3>
+      <p class="codelist">T40 · P30 · P45 · W21 · W22 · W25 · W31 · W32 · W48 · W50 · SmFan · SmLPC · SmHPC · phi</p>
+      <p>Des grandeurs internes <strong>calculées par le simulateur</strong>, qu'aucune instrumentation réelle ne peut fournir : température des gaz à 1500 °C là où aucune sonde ne tient, débits massiques (<code>W…</code>) au milieu du moteur — impossible d'y glisser un débitmètre — marges au pompage (<code>Sm…</code>, une marge de sécurité aérodynamique, qui se calcule mais ne se mesure pas), richesse du mélange (<code>phi</code>).</p>
+
+      <div class="callout analogy">
+        <span class="tag">Comparaison</span>
+        <p>Ce sont <strong>les notes privées du simulateur</strong>. Les utiliser comme features, c'est réviser un examen avec le corrigé posé à côté : le modèle aurait des scores parfaits en test, et serait inutilisable sur un vrai moteur qui, lui, n'a pas ces chiffres.</p>
+      </div>
+
+      <h3><span class="chip burn" style="opacity:.5"></span>T — les paramètres de santé θ (10, exclus)</h3>
+      <p class="codelist">fan_eff_mod · fan_flow_mod · LPC_eff_mod · LPC_flow_mod · HPC_eff_mod · HPC_flow_mod · HPT_eff_mod · HPT_flow_mod · LPT_eff_mod · LPT_flow_mod</p>
+      <p>Les <strong>10 « molettes d'usure »</strong> que le simulateur tourne progressivement. <code>HPT_eff_mod = −2 %</code> signifie « turbine HP 2 % moins efficace que neuve ». Sur le dataset DS01, c'est la molette <code>HPT_eff</code> qui dérive jusqu'à la panne.</p>
+
+      <div class="callout">
+        <span class="tag">Pourquoi c'est une fuite directe</span>
+        <p>La <code>RUL</code> est <em>définie</em> par le moment où ces molettes atteignent le seuil de fin de vie. Les donner en entrée du modèle, c'est prédire la cible à partir de ce qui la fabrique — le problème disparaît, mais rien n'a été appris.</p>
+      </div>
+
+      <h3><span class="chip plain"></span>A — l'auxiliaire &nbsp;·&nbsp; Y — la cible</h3>
+      <div class="tw">
+        <table>
+          <thead><tr><th class="code">Code</th><th>Quoi</th><th>Rôle</th></tr></thead>
+          <tbody>
+            <tr><td class="code"><b>unit</b></td><td>n° de série du moteur — 6 en <code>dev</code> (1–6), 4 en <code>test</code> (7–10)</td><td>on découpe l'entraînement <em>par moteur</em> (anti-fuite)</td></tr>
+            <tr><td class="code"><b>cycle</b></td><td>n° du vol pour ce moteur (1 = premier vol, croît jusqu'à la panne)</td><td>l'axe du temps de la dégradation</td></tr>
+            <tr><td class="code"><b>Fc</b></td><td>classe de vol : 1 = &lt; 3 h · 2 = 3–5 h · 3 = &gt; 5 h</td><td>détermine la durée de croisière → la « forme » du cycle. Feature catégorielle utile.</td></tr>
+            <tr><td class="code"><b>hs</b></td><td>health state : 1 = dégradation normale · 0 = un défaut est apparu</td><td>marque le début de la phase anormale</td></tr>
+            <tr><td class="code"><b>RUL</b></td><td>Remaining Useful Life — nombre de vols restants avant fin de vie</td><td><strong>ce que le modèle prédit</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <figure>
+        <div class="scroll">
+          <svg class="diagram" viewBox="0 100 820 262" role="img" aria-label="Schéma : W entre dans le moteur simulateur, qui produit X_s les capteurs mesurés, utilisés par le modèle ML pour prédire Y la RUL. X_v et T sont internes au simulateur ; T génère la RUL ; les deux sont barrés en entrée du modèle car ce serait copier la réponse.">
+            <defs>
+              <marker id="arrow3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto">
+                <path d="M0,0 L10,5 L0,10 z" fill="currentColor"/>
+              </marker>
+            </defs>
+
+            <!-- engine box -->
+            <rect x="300" y="120" width="200" height="90" rx="8" fill="var(--surface-2)" stroke="currentColor" stroke-width="1.4"/>
+            <text class="d-hd" x="400" y="150" text-anchor="middle">MOTEUR</text>
+            <text class="d-sm" x="400" y="168" text-anchor="middle">simulateur physique</text>
+            <!-- internal, greyed -->
+            <rect x="316" y="176" width="168" height="24" rx="4" fill="none" stroke="var(--ink-soft)" stroke-width="1" stroke-dasharray="3 3"/>
+            <text class="d-sm" x="400" y="192" text-anchor="middle">interne : X_v · T (θ)</text>
+
+            <!-- W input -->
+            <rect x="40" y="128" width="180" height="74" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.4"/>
+            <text class="d-lg" x="130" y="152" text-anchor="middle" fill="var(--accent)">W — conditions de vol</text>
+            <text class="d-sm" x="130" y="172" text-anchor="middle">alt · Mach · TRA · T2</text>
+            <text class="d-sm" x="130" y="188" text-anchor="middle">ce que le moteur subit</text>
+            <line x1="222" y1="165" x2="296" y2="165" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow3)"/>
+            <text class="d-sm" x="259" y="157" text-anchor="middle">entrées</text>
+
+            <!-- X_s output -->
+            <rect x="580" y="128" width="200" height="74" rx="8" fill="none" stroke="var(--accent)" stroke-width="1.6"/>
+            <text class="d-lg" x="680" y="152" text-anchor="middle" fill="var(--accent)">X_s — 14 capteurs réels</text>
+            <text class="d-sm" x="680" y="172" text-anchor="middle">T · P · régimes · carburant</text>
+            <text class="d-sm" x="680" y="188" text-anchor="middle">ce qu'on mesure vraiment</text>
+            <line x1="502" y1="165" x2="576" y2="165" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow3)"/>
+            <text class="d-sm" x="539" y="157" text-anchor="middle">sorties mesurées</text>
+
+            <!-- ML model -->
+            <rect x="580" y="252" width="200" height="64" rx="8" fill="var(--surface-2)" stroke="currentColor" stroke-width="1.4"/>
+            <text class="d-hd" x="680" y="280" text-anchor="middle">MODÈLE ML</text>
+            <text class="d-sm" x="680" y="298" text-anchor="middle">apprend X_s → RUL</text>
+            <line x1="680" y1="206" x2="680" y2="248" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow3)"/>
+
+            <!-- Y target -->
+            <rect x="300" y="264" width="200" height="52" rx="8" fill="none" stroke="var(--burn)" stroke-width="1.6"/>
+            <text class="d-lg" x="400" y="286" text-anchor="middle" fill="var(--burn)">Y — RUL</text>
+            <text class="d-sm" x="400" y="303" text-anchor="middle">vols restants (la cible)</text>
+            <line x1="576" y1="284" x2="504" y2="284" stroke="currentColor" stroke-width="1.6" marker-end="url(#arrow3)"/>
+            <text class="d-sm" x="540" y="276" text-anchor="middle">prédit</text>
+
+            <!-- T generates RUL -->
+            <line x1="380" y1="202" x2="380" y2="260" stroke="var(--ink-soft)" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrow3)"/>
+            <text class="d-sm" x="372" y="238" text-anchor="end" fill="var(--ink-soft)">T génère la RUL</text>
+
+            <!-- forbidden arrow -->
+            <line x1="470" y1="196" x2="600" y2="256" stroke="var(--burn)" stroke-width="1.3" stroke-dasharray="5 4"/>
+            <line x1="524" y1="214" x2="546" y2="238" stroke="var(--burn)" stroke-width="2.4"/>
+            <line x1="546" y1="214" x2="524" y2="238" stroke="var(--burn)" stroke-width="2.4"/>
+            <text class="d-sm" x="410" y="338" text-anchor="middle" fill="var(--burn)">X_v et T interdits en entrée du modèle — ce serait copier la réponse</text>
+          </svg>
+        </div>
+        <figcaption><b>La règle en une image.</b> Le modèle n'a droit qu'à ce qu'un vrai moteur exposerait : <code>W</code> (la situation) et <code>X_s</code> (les capteurs). <code>X_v</code> et <code>T</code> vivent dans le simulateur — et <code>T</code> <em>est</em> quasiment la réponse.</figcaption>
+      </figure>
+    </section>
+
+    <!-- ============================================= -->
+    <section id="s5">
+      <h2><span class="num">5</span> Comment l'usure devient visible</h2>
+
+      <p>Quand le moteur s'use — aubes érodées, jeux qui s'ouvrent, joints fatigués, encrassement — le <strong>rendement</strong> de ses composants baisse (ce sont les molettes <code>T</code>). Pour fournir <strong>la même poussée</strong> — le même <code>N1</code> demandé par le même <code>TRA</code>, aux mêmes <code>alt</code>/<code>Mach</code>/<code>T2</code> — le cœur doit travailler plus dur.</p>
+
+      <figure>
+        <div class="scroll">
+          <svg class="diagram" viewBox="0 0 760 300" role="img" aria-label="Comparaison de deux instantanés de croisière aux mêmes conditions de vol : moteur neuf versus moteur en fin de vie. EGT, débit carburant et N2 sont tous plus élevés sur le moteur usé.">
+            <text class="d-sm" x="380" y="30" text-anchor="middle">mêmes conditions de vol :  alt 35 000 ft · Mach 0.80 · TRA 60 %  →  même poussée demandée</text>
+
+            <!-- neuf -->
+            <rect x="60" y="54" width="280" height="200" rx="8" fill="var(--surface-2)" stroke="currentColor" stroke-width="1.2"/>
+            <text class="d-hd" x="200" y="80" text-anchor="middle">Moteur neuf</text>
+            <g class="d-lg" text-anchor="start">
+              <text x="90" y="120">T50 (EGT)</text><text x="300" y="120" text-anchor="end">720</text>
+              <text x="90" y="160">Wf</text><text x="300" y="160" text-anchor="end">1.00</text>
+              <text x="90" y="200">Nc (N2)</text><text x="300" y="200" text-anchor="end">9 200</text>
+            </g>
+
+            <!-- usé -->
+            <rect x="420" y="54" width="280" height="200" rx="8" fill="none" stroke="var(--burn)" stroke-width="1.6"/>
+            <text class="d-hd" x="560" y="80" text-anchor="middle" fill="var(--burn)">Moteur en fin de vie</text>
+            <g class="d-lg" text-anchor="start">
+              <text x="450" y="120">T50 (EGT)</text><text x="655" y="120" text-anchor="end" fill="var(--burn)">775 ▲</text>
+              <text x="450" y="160">Wf</text><text x="655" y="160" text-anchor="end" fill="var(--burn)">1.06 ▲</text>
+              <text x="450" y="200">Nc (N2)</text><text x="655" y="200" text-anchor="end" fill="var(--burn)">9 260 ▲</text>
+            </g>
+
+            <line x1="344" y1="154" x2="416" y2="154" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow3)"/>
+            <text class="d-sm" x="380" y="278" text-anchor="middle">le cœur travaille plus → EGT, carburant et N2 grimpent, vol après vol</text>
+          </svg>
+        </div>
+        <figcaption><b>Même poussée, plus d'effort.</b> Les chiffres sont illustratifs, mais le sens est réel : à conditions de vol identiques, un moteur usé chauffe plus et brûle plus. C'est exactement la dérive de <code>T50</code> en fonction de la <code>RUL</code> tracée dans la cellule 5 du notebook d'exploration.</figcaption>
+      </figure>
+
+      <p>Le travail du modèle ML, en une ligne : <strong>neutraliser l'effet des conditions de vol (<code>W</code>), puis lire la dérive minuscule qu'il reste d'un vol à l'autre, et la traduire en nombre de vols restants.</strong></p>
+
+      <div class="callout analogy">
+        <span class="tag">Comparaison</span>
+        <p>C'est un <strong>médecin qui suit une tension artérielle sur des années</strong>. Une mesure isolée ne dit rien — il faut corriger l'heure, le stress, l'effort (c'est <code>W</code>), puis regarder la tendance de fond une fois tout ça enlevé. La pente cachée, c'est la RUL.</p>
+      </div>
+    </section>
+
+    <!-- ============================================= -->
+    <section id="recap">
+      <h2><span class="num">·</span> Récapitulatif</h2>
+      <div class="tw">
+        <table>
+          <thead><tr><th>Bloc</th><th>Dans le modèle&nbsp;?</th><th>Pourquoi</th></tr></thead>
+          <tbody>
+            <tr><td class="code">A</td><td>identité seulement <span class="d-sm">(sauf <code>Fc</code>)</span></td><td>sert au découpage par moteur et à l'axe temps</td></tr>
+            <tr><td class="code">W</td><td class="yes">✅ features</td><td>ce que le moteur subit — 4 variables (<code>alt</code>, <code>Mach</code>, <code>TRA</code>, <code>T2</code>)</td></tr>
+            <tr><td class="code">X_s</td><td class="yes">✅ features</td><td>ce qu'on mesure vraiment — 14 capteurs physiques</td></tr>
+            <tr><td class="code">X_v</td><td class="no">❌ exclu</td><td>calculé par le simulateur, jamais mesurable → fuite d'information</td></tr>
+            <tr><td class="code">T (θ)</td><td class="no">❌ exclu</td><td>génère la <code>RUL</code> → fuite directe sur la cible</td></tr>
+            <tr><td class="code">Y</td><td>🎯 cible</td><td>la <code>RUL</code> à prédire</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="lede-note">AeroTwin · note de fond pour la Phase 4 (ML). Le turboréacteur décrit ici est le modèle « high-bypass » ~90 000 lbf simulé par C-MAPSS / N-CMAPSS (NASA). Valeurs numériques : ordres de grandeur pédagogiques. Dataset : <code>N-CMAPSS_DS01-005.h5</code> — mode de dégradation efficacité HPT.</p>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  (function () {
+    var KEY = 'aerotwin-engine-theme';
+    var root = document.documentElement;
+    var btn = document.querySelector('.theme-toggle');
+    function apply(t) {
+      if (t === 'light' || t === 'dark') root.setAttribute('data-theme', t);
+      else root.removeAttribute('data-theme');
+    }
+    var saved = null;
+    try { saved = localStorage.getItem(KEY); } catch (e) {}
+    if (saved) apply(saved);
+    function current() {
+      return root.getAttribute('data-theme') ||
+        (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    }
+    if (btn) {
+      btn.addEventListener('click', function () {
+        var next = current() === 'dark' ? 'light' : 'dark';
+        apply(next);
+        try { localStorage.setItem(KEY, next); } catch (e) {}
+      });
+    }
+  })();
+</script>
+
+</body>
+</html>

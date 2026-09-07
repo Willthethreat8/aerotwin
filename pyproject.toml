@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aerotwin"
+version = "0.1.0"
+description = "AeroTwin Phase 3 — ETL N-CMAPSS and flight-condition pipeline"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "pandas",
+  "numpy",
+  "h5py",
+  "geopandas",
+  "shapely",
+  "sqlalchemy",
+  "geoalchemy2",
+  "psycopg2-binary",
+  "requests",
+  "python-dotenv",
+  "metar",
+  "scikit-learn",
+  "xgboost",
+  "mlflow",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "jupyterlab"]
+
+[tool.setuptools]
+packages = ["src", "src.pipelines"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

@@ -20,7 +20,7 @@ def test_trajectory_columns():
     """Vérifie que notre fichier de trajectoires contient les colonnes nécessaires."""
     # On charge le fichier généré précédemment
     import geopandas as gpd
-    gdf = gpd.read_file('data/trajectoires_simulees.geojson')
+    gdf = gpd.read_file('data/processed/trajectoires_simulees.geojson')
     
     
     expected_cols = ['engine_id', 'geometry']
