@@ -1,6 +1,6 @@
 # ADR-007 : Jeux de données retenus
 Date : 2026-11-09
-Statut : acceptée
+Statut : remplacée par ADR-010
 
 ## Contexte
 DS01 seul compte 10 moteurs (6 dev, 4 test) et un seul mode de panne : les métriques sont dominées par la variance

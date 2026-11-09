@@ -5,7 +5,7 @@ timeline
     title AeroTwin
     2026-03 : Infrastructure Docker PostGIS : EDA C-MAPSS FD001 : Ingestion trajectoires et météo
     2026-09 : Pivot vers N-CMAPSS DS01 : ETL src/ : Baseline XGBoost
-    2026-11 : Audit : Décision de clôture : Extension DS01, DS03 à DS07
+    2026-11 : Audit : Décision de clôture : Extension DS01, DS03 à DS07 : Incident iCloud : Modèle par fichier : Ajout de DS02 pour comparaison
 ```
 
 | Date | Changement | Pourquoi | Référence |
@@ -22,3 +22,6 @@ timeline
 | 2026-11-09 | Décision de finir avec un dashboard puis de clôturer. Corrections : `.gitignore`, colonne `alt`, retrait de la référence 36.89 | Suites de l'audit | `9e791af`, [ADR-006](decisions/006-cloture-projet.md) |
 | 2026-11-09 | Décision d'étendre à DS01 et DS03 à DS07 (six modes de panne, 65 moteurs), un modèle par fichier, DS08 exclu | Plus de moteurs et plusieurs modes de panne | [ADR-007](decisions/007-jeux-de-donnees.md) |
 | 2026-11-09 | Téléchargement officiel N-CMAPSS, extraction de DS01 et DS03 à DS07, `read_ncmapss(ds_id)` | Données des six modes de panne, provenance tracée | [ADR-007](decisions/007-jeux-de-donnees.md), [data.md](data.md) |
+| 2026-11-09 | Incident iCloud. Cause : projet dans `Documents`, synchronisé avec « Optimiser le stockage » ; avec 12 Go libres pendant l'extraction, macOS a retiré du disque environ 7 800 fichiers (surtout `venv/`, 24 objets `.git`, 2 ADR). Conséquence : `pyproj` ne pouvait plus lire `proj.db`, 2 tests en échec, et `34946b5` poussé malgré ces échecs car pytest était pipé dans `tail`, ce qui masquait son code de retour. Correction : projet déplacé hors d'iCloud, venv recréé, `git fsck` sans corruption, SHA-256 des six `.h5` conformes à `docs/data.md`, 17 tests verts. | Règle adoptée : vérifier le code de retour de pytest (0, sans pipe qui le masque) avant tout push | `34946b5` |
+| 2026-11-09 | Décision d'ajouter DS02 uniquement pour la comparaison à la littérature, avec le découpage de la publication de référence (entraînement 2, 5, 10, 16, 18, 20 ; test 11, 14, 15). ADR-007 remplacée | Disposer d'un point de comparaison externe | [ADR-010](decisions/010-ajout-ds02.md) |
+| 2026-11-09 | Étape 3 : un modèle XGBoost par fichier (`python -m src.train --all`), métriques par moteur et écart-type, suppression du plafond RUL, retrait des rolling features sur `RUL`, nettoyage des commentaires | Métriques honnêtes par moteur, un modèle par mode de panne | [ADR-008](decisions/008-plafond-rul.md), [resultats.md](resultats.md) |
