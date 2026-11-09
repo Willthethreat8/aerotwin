@@ -41,7 +41,7 @@ def run_phase3_pipeline(
     logger.info("Après agrégation : %s cycles", len(cycles))
 
     rolling_cols = [
-        col for col in cycles.columns if col.endswith("_mean") or col in {"RUL", "altitude", "Mach", "TRA", "T2"}
+        col for col in cycles.columns if col.endswith("_mean") or col in {"RUL", "alt", "Mach", "TRA", "T2"}
     ]
     cycles = add_rolling_features(cycles, columns=rolling_cols[:8], window=config.ROLLING_WINDOW)
 

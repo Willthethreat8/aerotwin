@@ -116,7 +116,7 @@ def generate_trajectories(
 
     for unit, group in flight_summary.groupby("unit", sort=True):
         fc_value = int(group["Fc"].iloc[0]) if "Fc" in group.columns else 1
-        altitude_mean = float(group.get("altitude_mean", pd.Series([0.0])).iloc[0]) if "altitude_mean" in group.columns else 0.0
+        altitude_mean = float(group.get("alt_mean", pd.Series([0.0])).iloc[0]) if "alt_mean" in group.columns else 0.0
 
         progression = np.linspace(0.0, 1.0, n_points)
         lateral = 0.0008 * (1.0 + fc_value) * progression

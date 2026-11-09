@@ -60,7 +60,7 @@ def read_ncmapss(
         rul_vector = np.asarray(handle[rul_key]).reshape(-1, 1)
 
         aux_cols = _decode_names(handle["A_var"]) or ["unit", "cycle", "Fc", "hs"]
-        weather_cols = _decode_names(handle["W_var"]) or ["altitude", "Mach", "TRA", "T2"]
+        weather_cols = _decode_names(handle["W_var"]) or ["alt", "Mach", "TRA", "T2"]
         sensor_cols = _decode_names(handle["X_s_var"]) or [f"sensor_{i}" for i in range(sensors_matrix.shape[1])]
 
         aux_df = pd.DataFrame(aux_matrix, columns=aux_cols)

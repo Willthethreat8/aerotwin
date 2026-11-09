@@ -22,3 +22,6 @@ mlartifacts/
 
 # Fichiers système Mac
 .DS_Store
+
+# IDE et fichiers perso
+.idea/

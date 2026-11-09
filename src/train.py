@@ -107,7 +107,7 @@ def run_baseline(
         run_id = run.info.run_id
 
     logger.info(
-        "Test RMSE=%.2f MAE=%.2f R2=%.3f (référence à battre : RMSE 36.89)",
+        "Test RMSE=%.2f MAE=%.2f R2=%.3f",
         test_metrics["rmse"], test_metrics["mae"], test_metrics["r2"],
     )
     return {"cv": cv_results, "test": test_metrics, "comparable_test": comparable_metrics, "run_id": run_id}
