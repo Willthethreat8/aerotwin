@@ -24,23 +24,31 @@ def _decode_names(raw_array: np.ndarray | None) -> list[str]:
     return [value.decode("utf-8") if isinstance(value, bytes) else str(value) for value in values]
 
 
-def read_ncmapss(
-    path: Path | str = config.NCMAPSS_DS01_PATH,
-    split: str = "dev",
-) -> pd.DataFrame:
-    """Lit le dataset N-CMAPSS et renvoie un DataFrame exploitable.
+def resolve_ncmapss_path(ds_id: str, directory: Path | str = config.NCMAPSS_DIR) -> Path:
+    """Trouve le fichier d'un DS par motif (le suffixe de version varie : DS01-005, DS03-012...)."""
+    matches = sorted(Path(directory).glob(f"N-CMAPSS_{ds_id}*.h5"))
+    if len(matches) != 1:
+        raise FileNotFoundError(f"{len(matches)} fichier(s) N-CMAPSS pour {ds_id} dans {directory}")
+    return matches[0]
 
-    Structure attendue :
-    - A_{split} : métadonnées du cycle (unit, cycle, Fc, hs)
-    - W_{split} : conditions de vol (altitude, Mach, TRA, T2)
-    - X_s_{split} : capteurs physiques
-    - Y_{split} : RUL
+
+def read_ncmapss(
+    ds_id: str = "DS01",
+    split: str = "dev",
+    path: Path | str | None = None,
+) -> pd.DataFrame:
+    """Lit un fichier N-CMAPSS et renvoie un DataFrame 1 Hz.
+
+    Groupes lus : A (unit, cycle, Fc, hs), W (alt, Mach, TRA, T2), X_s (capteurs physiques), Y (RUL).
+    X_v et T ne sont pas lus (ADR-004). `path` force un fichier précis, sinon il est résolu depuis `ds_id`.
     """
+    if ds_id not in config.NCMAPSS_FAULT_MODES:
+        raise ValueError(f"ds_id inconnu : {ds_id}")
     split_key = split.lower()
     if split_key not in {"dev", "test"}:
         raise ValueError(f"split must be 'dev' or 'test', got '{split}'")
 
-    file_path = Path(path)
+    file_path = Path(path) if path is not None else resolve_ncmapss_path(ds_id)
     if not file_path.exists():
         raise FileNotFoundError(f"Dataset N-CMAPSS introuvable : {file_path}")
 
@@ -76,6 +84,8 @@ def read_ncmapss(
     df["cycle"] = df["cycle"].astype("Int64").astype("int64")
     df["Fc"] = df["Fc"].astype("Int64").astype("int64")
     df["hs"] = df["hs"].astype("Int64").astype("int64")
+    df["ds_id"] = ds_id
+    df["fault_mode"] = config.NCMAPSS_FAULT_MODES[ds_id]
     return df.reset_index(drop=True)
 
 

@@ -63,7 +63,7 @@ def drop_constant_columns(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df.copy()
 
-    keep_cols = ["unit", "cycle"]
+    keep_cols = [col for col in ("ds_id", "fault_mode", "unit", "cycle") if col in df.columns]
     for col in df.columns:
         if col in keep_cols:
             continue

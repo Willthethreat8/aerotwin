@@ -64,7 +64,7 @@ def cross_validate(
 
 
 def run_baseline(
-    dataset_path: str = config.NCMAPSS_DS01_PATH,
+    ds_id: str = "DS01",
     cap: int | None = RUL_CAP,
     experiment_name: str = "aerotwin-phase4-xgboost",
 ) -> dict[str, object]:
@@ -77,8 +77,8 @@ def run_baseline(
     le non-cappé porte sur des valeurs de RUL beaucoup plus grandes).
     """
     logger.info("Construction des features dev/test ...")
-    dev_cycles = build_cycle_features("dev", dataset_path)
-    test_cycles = build_cycle_features("test", dataset_path)
+    dev_cycles = build_cycle_features("dev", ds_id)
+    test_cycles = build_cycle_features("test", ds_id)
 
     X_dev, y_dev, groups_dev = split_features_target(dev_cycles)
     X_test, y_test_raw, _ = split_features_target(test_cycles)
@@ -114,16 +114,16 @@ def run_baseline(
 
 
 def compare_cap_variants(
-    dataset_path: str = config.NCMAPSS_DS01_PATH,
+    ds_id: str = "DS01",
     experiment_name: str = "aerotwin-phase4-xgboost",
 ) -> dict[str, object]:
     """Phase 4.2 — entraîne capped et non-capped, compare sur l'échelle cappée
     (seule échelle où les deux runs sont comparables), tague le meilleur run
     MLflow avec `best_model=true`."""
     logger.info("Run 1/2 : RUL cappée à %s ...", RUL_CAP)
-    capped = run_baseline(dataset_path=dataset_path, cap=RUL_CAP, experiment_name=experiment_name)
+    capped = run_baseline(ds_id=ds_id, cap=RUL_CAP, experiment_name=experiment_name)
     logger.info("Run 2/2 : RUL non cappée ...")
-    uncapped = run_baseline(dataset_path=dataset_path, cap=None, experiment_name=experiment_name)
+    uncapped = run_baseline(ds_id=ds_id, cap=None, experiment_name=experiment_name)
 
     rmse_capped = capped["comparable_test"]["rmse"]
     rmse_uncapped = uncapped["comparable_test"]["rmse"]
@@ -140,17 +140,17 @@ def compare_cap_variants(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Phase 4 — Baseline XGBoost RUL")
-    parser.add_argument("--dataset", type=str, default=str(config.NCMAPSS_DS01_PATH))
+    parser.add_argument("--ds", type=str, default="DS01", choices=sorted(config.NCMAPSS_FAULT_MODES))
     parser.add_argument("--cap", type=int, default=RUL_CAP, help="Plafond RUL (défaut 125)")
     parser.add_argument("--no-cap", action="store_true", help="Désactive le plafonnement RUL")
     parser.add_argument("--compare", action="store_true", help="Phase 4.2 : compare capped vs non-capped, tague le meilleur")
     args = parser.parse_args()
 
     if args.compare:
-        result = compare_cap_variants(dataset_path=args.dataset)
+        result = compare_cap_variants(ds_id=args.ds)
     else:
         cap = None if args.no_cap else args.cap
-        result = run_baseline(dataset_path=args.dataset, cap=cap)
+        result = run_baseline(ds_id=args.ds, cap=cap)
     print(result)
 
 

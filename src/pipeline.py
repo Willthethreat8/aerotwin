@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import logging
-from pathlib import Path
 
 from src import config
 from src.extract import fetch_weather_history, read_ncmapss
@@ -20,7 +19,7 @@ logger = logging.getLogger("aerotwin.phase3")
 
 
 def run_phase3_pipeline(
-    dataset_path: str | Path = config.NCMAPSS_DS01_PATH,
+    ds_id: str = "DS01",
     split: str = "dev",
     cycle_table: str = "phase3_cycles",
     weather_table: str = "phase3_weather",
@@ -32,7 +31,7 @@ def run_phase3_pipeline(
     Retourne un dictionnaire de résumé de l'exécution.
     """
     logger.info("Lecture du dataset N-CMAPSS ...")
-    raw = read_ncmapss(path=dataset_path, split=split)
+    raw = read_ncmapss(ds_id=ds_id, split=split)
     logger.info("Dataset lu : %s lignes", len(raw))
 
     logger.info("Agrégation par moteur et par cycle ...")
@@ -72,7 +71,7 @@ def run_phase3_pipeline(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Phase 3 — ETL AeroTwin")
-    parser.add_argument("--dataset", type=str, default=str(config.NCMAPSS_DS01_PATH), help="Chemin du fichier N-CMAPSS HDF5")
+    parser.add_argument("--ds", type=str, default="DS01", choices=sorted(config.NCMAPSS_FAULT_MODES), help="Fichier N-CMAPSS")
     parser.add_argument("--split", type=str, default="dev", choices=["dev", "test"], help="Split de lecture du dataset")
     parser.add_argument("--cycle-table", type=str, default="phase3_cycles", help="Nom table PostGIS pour les cycles")
     parser.add_argument("--weather-table", type=str, default="phase3_weather", help="Nom table PostGIS pour la météo")
@@ -81,7 +80,7 @@ def main() -> None:
     args = parser.parse_args()
 
     result = run_phase3_pipeline(
-        dataset_path=args.dataset,
+        ds_id=args.ds,
         split=args.split,
         cycle_table=args.cycle_table,
         weather_table=args.weather_table,

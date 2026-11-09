@@ -12,6 +12,7 @@ __pycache__/
 data/raw/**/*.h5
 data/raw/*.h5
 data/raw/*.txt
+data/raw/*.zip
 
 # Données générées — légères, committables
 # data/processed/ → versionné dans Git

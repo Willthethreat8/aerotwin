@@ -16,7 +16,16 @@ DATA_RAW = PROJECT_ROOT / "data" / "raw"
 DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
 
 # --- Dataset NASA N-CMAPSS ---
-NCMAPSS_DS01_PATH = DATA_RAW / "ncmapss" / "N-CMAPSS_DS01-005.h5"
+NCMAPSS_DIR = DATA_RAW / "ncmapss"
+# Fichiers retenus (ADR-007) et composant(s) dégradé(s)
+NCMAPSS_FAULT_MODES = {
+    "DS01": "HPT",
+    "DS03": "HPT+LPT",
+    "DS04": "Fan",
+    "DS05": "HPC",
+    "DS06": "LPC+HPC",
+    "DS07": "LPT",
+}
 
 # (Legacy C-MAPSS — conservé pour la clause de repli, cf. ROADMAP.md Phase 3)
 CMAPSS_COLUMNS = (

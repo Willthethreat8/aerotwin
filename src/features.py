@@ -19,9 +19,9 @@ SENSOR_COLS = ["T24", "T30", "T48", "T50", "P15", "P2", "P21", "P24", "Ps30", "P
 FC_CATEGORIES = [1, 2, 3]
 
 
-def build_cycle_features(split: str, dataset_path: str = config.NCMAPSS_DS01_PATH) -> pd.DataFrame:
+def build_cycle_features(split: str, ds_id: str = "DS01") -> pd.DataFrame:
     """Lit un split N-CMAPSS et renvoie une ligne par (unit, cycle) avec les features 4.1."""
-    raw = read_ncmapss(path=dataset_path, split=split)
+    raw = read_ncmapss(ds_id=ds_id, split=split)
     cycles = aggregate_to_cycles(raw)
 
     rolling_cols = [f"{col}_mean" for col in SENSOR_COLS]
@@ -38,7 +38,7 @@ def encode_fc(X: pd.DataFrame) -> pd.DataFrame:
 
 def split_features_target(cycles: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
     """Sépare features / cible RUL / groupes moteur (pour un split GroupKFold sans leakage)."""
-    exclude = {"unit", "cycle", "hs", "RUL"}
+    exclude = {"ds_id", "fault_mode", "unit", "cycle", "hs", "RUL"}
     feature_cols = [col for col in cycles.columns if col not in exclude]
     X = encode_fc(cycles[feature_cols])
     y = cycles["RUL"]
