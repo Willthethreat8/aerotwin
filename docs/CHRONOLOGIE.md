@@ -20,4 +20,5 @@ timeline
 | 2026-09 | Phase 4.2 : comparaison capped / uncapped, signature MLflow (commité le 2026-11-09) | Choisir entre RUL plafonnée ou non | `8019140` |
 | 2026-11-06 | Audit du projet : plafond RUL sans effet, référence 36.89 non comparable, écart test / CV dû à la variance, commits non poussés, périmètre trop large | Revue avant publication | [ADR-006](decisions/006-cloture-projet.md) |
 | 2026-11-09 | Décision de finir avec un dashboard puis de clôturer. Corrections : `.gitignore`, colonne `alt`, retrait de la référence 36.89 | Suites de l'audit | `9e791af`, [ADR-006](decisions/006-cloture-projet.md) |
-| 2026-11-09 | Décision d'étendre à DS01 et DS03 à DS07 (six modes de panne, 65 moteurs), un modèle par fichier, DS08 exclu | Plus de moteurs et plusieurs modes de panne | ADR-007 (étape 2) |
+| 2026-11-09 | Décision d'étendre à DS01 et DS03 à DS07 (six modes de panne, 65 moteurs), un modèle par fichier, DS08 exclu | Plus de moteurs et plusieurs modes de panne | [ADR-007](decisions/007-jeux-de-donnees.md) |
+| 2026-11-09 | Téléchargement officiel N-CMAPSS, extraction de DS01 et DS03 à DS07, `read_ncmapss(ds_id)` | Données des six modes de panne, provenance tracée | [ADR-007](decisions/007-jeux-de-donnees.md), [data.md](data.md) |

@@ -37,14 +37,21 @@ def download(expected: int) -> None:
     free = shutil.disk_usage(config.DATA_RAW).free
     if free < expected - done + MARGIN:
         sys.exit(f"Espace libre insuffisant : {free / 1e9:.1f} Go, il faut {(expected - done + MARGIN) / 1e9:.1f} Go")
-    # Reprise du téléchargement si un fichier partiel existe
-    req = urllib.request.Request(URL, headers={"Range": f"bytes={done}-"} if done else {})
-    with urllib.request.urlopen(req) as resp, open(ARCHIVE, "ab" if done else "wb") as out:
-        while chunk := resp.read(CHUNK):
-            out.write(chunk)
-            done += len(chunk)
-            if done % 10**9 < CHUNK:
-                print(f"{done / 1e9:.0f} / {expected / 1e9:.0f} Go", flush=True)
+    # Reprise depuis la fin du fichier partiel, y compris après une coupure réseau
+    for _ in range(10):
+        done = ARCHIVE.stat().st_size if ARCHIVE.exists() else 0
+        if done == expected:
+            break
+        req = urllib.request.Request(URL, headers={"Range": f"bytes={done}-"})
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp, open(ARCHIVE, "ab") as out:
+                while chunk := resp.read(CHUNK):
+                    out.write(chunk)
+                    done += len(chunk)
+                    if done % 10**9 < CHUNK:
+                        print(f"{done / 1e9:.0f} / {expected / 1e9:.0f} Go", flush=True)
+        except OSError as exc:
+            print(f"Coupure à {done / 1e9:.1f} Go ({exc}), reprise", flush=True)
     if ARCHIVE.stat().st_size != expected:
         sys.exit(f"Archive incomplète : {ARCHIVE.stat().st_size} octets au lieu de {expected}")
 
@@ -54,24 +61,40 @@ def wanted(name: str) -> bool:
     return bool(match) and match.group(1) in config.NCMAPSS_FAULT_MODES and name.endswith(".h5")
 
 
-def extract() -> list[tuple[str, int, str]]:
+def file_sha256(path: Path) -> str:
+    sha = hashlib.sha256()
+    with open(path, "rb") as handle:
+        while chunk := handle.read(CHUNK):
+            sha.update(chunk)
+    return sha.hexdigest()
+
+
+def extract() -> tuple[list[tuple[str, int, str]], list[str]]:
     """Extrait les .h5 retenus sans écrire data_set.zip sur le disque. zipfile vérifie le CRC de chaque fichier lu."""
     config.NCMAPSS_DIR.mkdir(parents=True, exist_ok=True)
-    rows = []
+    rows, notes = [], []
     with zipfile.ZipFile(ARCHIVE) as outer, outer.open(INNER) as inner_file, zipfile.ZipFile(inner_file) as inner:
         names = [info.filename for info in inner.infolist()]
         print("Contenu de data_set.zip :", *names, sep="\n  ")
         # Ordre des offsets : évite de relire l'archive depuis le début entre deux fichiers
         for info in sorted((i for i in inner.infolist() if wanted(i.filename)), key=lambda i: i.header_offset):
             dest = config.NCMAPSS_DIR / Path(info.filename).name
+            # Un fichier déjà présent n'est remplacé que s'il diffère de la version officielle
+            target = dest.with_name(dest.name + ".tmp") if dest.exists() else dest
             sha = hashlib.sha256()
-            with inner.open(info) as src, open(dest, "wb") as out:
+            with inner.open(info) as src, open(target, "wb") as out:
                 while chunk := src.read(CHUNK):
                     sha.update(chunk)
                     out.write(chunk)
+            if target != dest:
+                identical = file_sha256(dest) == sha.hexdigest()
+                notes.append(f"{dest.name} était déjà présent : "
+                             + ("identique à la version officielle, conservé." if identical
+                                else "différent de la version officielle, remplacé par celle-ci."))
+                target.unlink() if identical else target.replace(dest)
             rows.append((dest.name, info.file_size, sha.hexdigest()))
             print(f"{dest.name} : {info.file_size} octets")
-    return rows
+    return rows, notes
 
 
 def describe(ds_id: str) -> dict[str, object]:
@@ -89,7 +112,7 @@ def describe(ds_id: str) -> dict[str, object]:
     return stats
 
 
-def write_doc(rows: list[tuple[str, int, str]]) -> None:
+def write_doc(rows: list[tuple[str, int, str]], notes: list[str]) -> None:
     lines = [
         "# Données N-CMAPSS",
         "",
@@ -101,6 +124,8 @@ def write_doc(rows: list[tuple[str, int, str]]) -> None:
         "| Fichier | Taille (octets) | SHA-256 |",
         "|---|---|---|",
         *[f"| {name} | {size} | `{sha}` |" for name, size, sha in rows],
+        "",
+        *notes,
         "",
         "## Contenu",
         "",
@@ -120,10 +145,10 @@ def main() -> None:
     expected = remote_size()
     print(f"Archive : {expected / 1e9:.2f} Go")
     download(expected)
-    rows = extract()
+    rows, notes = extract()
     if len(rows) != len(config.NCMAPSS_FAULT_MODES):
         sys.exit(f"{len(rows)} fichiers extraits au lieu de {len(config.NCMAPSS_FAULT_MODES)}")
-    write_doc(rows)
+    write_doc(rows, notes)
     print(f"Écrit {DOC}. L'archive {ARCHIVE} peut être supprimée.")
 
 
