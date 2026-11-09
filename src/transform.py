@@ -1,11 +1,7 @@
-"""Transformations métier (Transform du ETL) — version N-CMAPSS.
+"""Transformations de l'ETL N-CMAPSS. Fonctions pures, sans I/O.
 
-Règle d'or : fonctions PURES — un DataFrame entre, un DataFrame sort,
-jamais de mutation de l'argument (pas de inplace=True), pas d'I/O ici.
-
-Changement clé vs C-MAPSS : la RUL est FOURNIE par le dataset (Y),
-plus besoin de la calculer. La transformation centrale devient
-l'agrégation 1 Hz -> cycle (LA décision d'architecture de la bascule).
+La RUL est fournie par le jeu de données ; la transformation principale est l'agrégation 1 Hz vers cycle
+(ADR-003).
 """
 from __future__ import annotations
 
@@ -18,12 +14,7 @@ from src import config
 
 
 def aggregate_to_cycles(df: pd.DataFrame) -> pd.DataFrame:
-    """Agrège les mesures 1 Hz en une ligne par moteur et par cycle.
-
-    Le point clé de la phase 3 est de passer de millions de lignes à quelques
-    milliers de lignes, afin de garder l'EDA, les rolling features et le futur
-    entraînement ML légers et reproductibles.
-    """
+    """Agrège les mesures 1 Hz en une ligne par moteur et par cycle (moyenne, écart-type, min, max)."""
     if df.empty:
         return df.copy()
 

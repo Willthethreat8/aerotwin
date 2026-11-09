@@ -1,9 +1,4 @@
-"""Pipeline ETL de la phase 3 — production-ready baseline.
-
-Ce fichier orchestre l'Extraction -> Transformation -> Chargement du dataset
-N-CMAPSS sur une base PostGIS, en gardant les notebooks pour l'exploration et
-les tests.
-"""
+"""ETL N-CMAPSS vers PostGIS : extraction, agrégation par cycle, chargement."""
 from __future__ import annotations
 
 import argparse
@@ -26,7 +21,7 @@ def run_phase3_pipeline(
     weather_start: str = "2024-01-01",
     weather_end: str = "2024-12-31",
 ) -> dict[str, int | str]:
-    """Exécute la chaîne ETL de la phase 3.
+    """Exécute la chaîne ETL.
 
     Retourne un dictionnaire de résumé de l'exécution.
     """
@@ -39,9 +34,7 @@ def run_phase3_pipeline(
     cycles = drop_constant_columns(cycles)
     logger.info("Après agrégation : %s cycles", len(cycles))
 
-    rolling_cols = [
-        col for col in cycles.columns if col.endswith("_mean") or col in {"RUL", "alt", "Mach", "TRA", "T2"}
-    ]
+    rolling_cols = [col for col in cycles.columns if col.endswith("_mean")]
     cycles = add_rolling_features(cycles, columns=rolling_cols[:8], window=config.ROLLING_WINDOW)
 
     logger.info("Récupération contexte météo historique ...")
@@ -70,7 +63,7 @@ def run_phase3_pipeline(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Phase 3 — ETL AeroTwin")
+    parser = argparse.ArgumentParser(description="ETL AeroTwin")
     parser.add_argument("--ds", type=str, default="DS01", choices=sorted(config.NCMAPSS_FAULT_MODES), help="Fichier N-CMAPSS")
     parser.add_argument("--split", type=str, default="dev", choices=["dev", "test"], help="Split de lecture du dataset")
     parser.add_argument("--cycle-table", type=str, default="phase3_cycles", help="Nom table PostGIS pour les cycles")

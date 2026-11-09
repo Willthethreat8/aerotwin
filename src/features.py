@@ -1,4 +1,4 @@
-"""Feature engineering pour le baseline ML (Phase 4.1).
+"""Variables du modèle RUL.
 
 Sépare la construction des features ML de l'ETL (src/transform.py) : ici on
 fige la liste de colonnes attendue par le modèle, indépendamment de ce que
@@ -12,9 +12,9 @@ from src import config
 from src.extract import read_ncmapss
 from src.transform import add_rolling_features, aggregate_to_cycles
 
-# Conditions de vol N-CMAPSS (groupe W) — cf. ROADMAP.md, la colonne est "alt", pas "altitude"
+# Conditions de vol (groupe W)
 FLIGHT_CONDITION_COLS = ["alt", "Mach", "TRA", "T2"]
-# Capteurs physiques (groupe X_s) — X_v et T exclus : data leakage (cf. ROADMAP.md)
+# Capteurs physiques (groupe X_s) ; X_v et T exclus (ADR-004)
 SENSOR_COLS = ["T24", "T30", "T48", "T50", "P15", "P2", "P21", "P24", "Ps30", "P40", "P50", "Nf", "Nc", "Wf"]
 FC_CATEGORIES = [1, 2, 3]
 
@@ -47,5 +47,5 @@ def split_features_target(cycles: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series
 
 
 def cap_rul(y: pd.Series, cap: int = 125) -> pd.Series:
-    """Plafonne la RUL — pratique standard C-MAPSS/N-CMAPSS pour stabiliser l'entraînement."""
+    """Plafonne la RUL (ADR-008)."""
     return y.clip(upper=cap)

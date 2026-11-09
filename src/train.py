@@ -1,24 +1,22 @@
-"""Phase 4.1 — Baseline XGBoost pour la prédiction de RUL (N-CMAPSS DS01).
+"""Modèle XGBoost de RUL, un modèle par fichier N-CMAPSS.
 
-Choix XGBoost : c'est le modèle le plus utilisé dans la littérature C-MAPSS/
-N-CMAPSS sur données tabulaires agrégées par cycle (robuste, peu de tuning,
-rapide sur un dataset de cette taille). Une comparaison avec un autre modèle
-(ex. Random Forest, LSTM) est prévue en 4.3, pas dans ce baseline.
+CV leave-one-unit-out sur les moteurs dev (ADR-005), puis modèle final entraîné sur tout le dev et évalué sur
+les moteurs test officiels. Métriques par moteur et écart-type entre moteurs.
 
-CV : leave-one-unit-out sur le split dev (6 moteurs), aucune fuite entre
-moteurs. Évaluation finale sur le split test officiel (moteurs 7-10), jamais
-vu pendant l'entraînement ni le tuning.
+Usage : python -m src.train --ds DS03    ou    python -m src.train --all (écrit docs/resultats.md)
 """
 from __future__ import annotations
 
 import argparse
 import logging
+import os
+
+os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")  # conserve le suivi local dans mlruns/
 
 import mlflow
 import mlflow.xgboost
 import numpy as np
 import pandas as pd
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import LeaveOneGroupOut
 from xgboost import XGBRegressor
 
@@ -26,9 +24,9 @@ from src import config
 from src.features import build_cycle_features, cap_rul, split_features_target
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
-logger = logging.getLogger("aerotwin.phase4")
+logger = logging.getLogger("aerotwin.train")
 
-RUL_CAP = 125
+RUL_CAP = None  # ADR-008
 XGB_PARAMS = {
     "n_estimators": 300,
     "max_depth": 4,
@@ -37,121 +35,122 @@ XGB_PARAMS = {
     "colsample_bytree": 0.8,
     "random_state": 42,
 }
+RESULTS_PATH = config.PROJECT_ROOT / "docs" / "resultats.md"
 
 
-def _metrics(y_true, y_pred) -> dict[str, float]:
-    return {
-        "rmse": float(np.sqrt(mean_squared_error(y_true, y_pred))),
-        "mae": float(mean_absolute_error(y_true, y_pred)),
-        "r2": float(r2_score(y_true, y_pred)),
-    }
+def _rmse(y_true, y_pred) -> float:
+    return float(np.sqrt(np.mean((np.asarray(y_true) - np.asarray(y_pred)) ** 2)))
 
 
-def cross_validate(
-    X: pd.DataFrame, y: pd.Series, groups: pd.Series, params: dict = XGB_PARAMS
-) -> dict[str, object]:
-    """Leave-one-unit-out : chaque moteur du dev sert une fois de validation."""
-    logo = LeaveOneGroupOut()
-    fold_metrics = []
-    for train_idx, val_idx in logo.split(X, y, groups):
+def _mae(y_true, y_pred) -> float:
+    return float(np.mean(np.abs(np.asarray(y_true) - np.asarray(y_pred))))
+
+
+def cross_validate(X: pd.DataFrame, y: pd.Series, groups: pd.Series, params: dict = XGB_PARAMS) -> np.ndarray:
+    """Prédictions hors échantillon : chaque moteur est prédit par un modèle entraîné sans lui."""
+    oof = np.zeros(len(y))
+    for train_idx, val_idx in LeaveOneGroupOut().split(X, y, groups):
         model = XGBRegressor(**params)
         model.fit(X.iloc[train_idx], y.iloc[train_idx])
-        preds = model.predict(X.iloc[val_idx])
-        fold_metrics.append(_metrics(y.iloc[val_idx], preds))
-
-    fold_df = pd.DataFrame(fold_metrics)
-    return {"per_fold": fold_metrics, "mean": fold_df.mean().to_dict(), "std": fold_df.std().to_dict()}
+        oof[val_idx] = model.predict(X.iloc[val_idx])
+    return oof
 
 
-def run_baseline(
-    ds_id: str = "DS01",
-    cap: int | None = RUL_CAP,
-    experiment_name: str = "aerotwin-phase4-xgboost",
-) -> dict[str, object]:
-    """Entraîne et évalue le baseline XGBoost, log tout dans MLflow.
+def per_unit_metrics(predictions: pd.DataFrame) -> pd.DataFrame:
+    """RMSE et MAE par (split, moteur), contre la RUL réelle."""
+    rows = [
+        {"split": split, "unit": unit, "n_cycles": len(g),
+         "rmse": _rmse(g["rul_true"], g["rul_pred"]), "mae": _mae(g["rul_true"], g["rul_pred"])}
+        for (split, unit), g in predictions.groupby(["split", "unit"])
+    ]
+    return pd.DataFrame(rows)
 
-    En plus de `test` (métriques sur l'échelle propre à ce run — cappée ou non),
-    renvoie `comparable_test` : métriques évaluées contre une vérité terrain
-    toujours cappée à RUL_CAP, pour pouvoir comparer un run capped et un run
-    uncapped sur la même échelle (leurs RMSE bruts ne sont pas comparables,
-    le non-cappé porte sur des valeurs de RUL beaucoup plus grandes).
-    """
-    logger.info("Construction des features dev/test ...")
-    dev_cycles = build_cycle_features("dev", ds_id)
-    test_cycles = build_cycle_features("test", ds_id)
 
-    X_dev, y_dev, groups_dev = split_features_target(dev_cycles)
-    X_test, y_test_raw, _ = split_features_target(test_cycles)
+def summarize(per_unit: pd.DataFrame, predictions: pd.DataFrame) -> dict[str, float]:
+    """Moyenne et écart-type entre moteurs, plus le RMSE calculé sur tous les cycles."""
+    out = {}
+    for split, g in per_unit.groupby("split"):
+        pred = predictions[predictions["split"] == split]
+        out.update({
+            f"{split}_rmse_mean": g["rmse"].mean(), f"{split}_rmse_std": g["rmse"].std(),
+            f"{split}_mae_mean": g["mae"].mean(), f"{split}_mae_std": g["mae"].std(),
+            f"{split}_rmse_all_cycles": _rmse(pred["rul_true"], pred["rul_pred"]),
+        })
+    return {k: float(v) for k, v in out.items()}
 
-    y_dev_train = cap_rul(y_dev, cap) if cap is not None else y_dev
-    y_test_eval = cap_rul(y_test_raw, cap) if cap is not None else y_test_raw
 
-    logger.info("Cross-validation leave-one-unit-out sur dev (%s moteurs) ...", groups_dev.nunique())
-    cv_results = cross_validate(X_dev, y_dev_train, groups_dev)
+def train_ds(ds_id: str, cap: int | None = RUL_CAP, log_mlflow: bool = True) -> dict[str, object]:
+    """Entraîne et évalue le modèle d'un fichier. `split` vaut "cv" pour les moteurs dev prédits hors échantillon."""
+    dev = build_cycle_features("dev", ds_id)
+    test = build_cycle_features("test", ds_id)
+    X_dev, y_dev, groups = split_features_target(dev)
+    X_test, _, _ = split_features_target(test)
+    y_fit = cap_rul(y_dev, cap) if cap is not None else y_dev
 
-    logger.info("Entraînement final sur dev complet, évaluation sur test officiel ...")
+    logger.info("%s : CV leave-one-unit-out sur %s moteurs dev", ds_id, groups.nunique())
+    oof = cross_validate(X_dev, y_fit, groups)
     model = XGBRegressor(**XGB_PARAMS)
-    model.fit(X_dev, y_dev_train)
-    predictions = model.predict(X_test)
-    test_metrics = _metrics(y_test_eval, predictions)
-    comparable_metrics = _metrics(cap_rul(y_test_raw, RUL_CAP), predictions)
+    model.fit(X_dev, y_fit)
 
-    mlflow.set_experiment(experiment_name)
-    with mlflow.start_run(run_name=f"xgboost-cap{cap}" if cap else "xgboost-nocap") as run:
-        mlflow.log_params({**XGB_PARAMS, "rul_cap": cap, "n_features": X_dev.shape[1]})
-        mlflow.log_metrics({f"cv_{k}": v for k, v in cv_results["mean"].items()})
-        mlflow.log_metrics({f"test_{k}": v for k, v in test_metrics.items()})
-        mlflow.log_metrics({f"comparable_test_{k}": v for k, v in comparable_metrics.items()})
-        signature = mlflow.models.infer_signature(X_dev, predictions)
-        mlflow.xgboost.log_model(model, name="model", signature=signature, input_example=X_dev.head())
-        run_id = run.info.run_id
+    keep = ["ds_id", "fault_mode", "unit", "cycle", "hs", "RUL"]
+    predictions = pd.concat([
+        dev[keep].assign(split="cv", rul_pred=oof),
+        test[keep].assign(split="test", rul_pred=model.predict(X_test)),
+    ], ignore_index=True).rename(columns={"RUL": "rul_true"})
 
-    logger.info(
-        "Test RMSE=%.2f MAE=%.2f R2=%.3f",
-        test_metrics["rmse"], test_metrics["mae"], test_metrics["r2"],
-    )
-    return {"cv": cv_results, "test": test_metrics, "comparable_test": comparable_metrics, "run_id": run_id}
+    per_unit = per_unit_metrics(predictions)
+    summary = summarize(per_unit, predictions)
+    importance = pd.Series(model.feature_importances_, index=X_dev.columns).sort_values(ascending=False)
+
+    if log_mlflow:
+        mlflow.set_experiment("aerotwin-xgboost")
+        with mlflow.start_run(run_name=ds_id):
+            mlflow.log_params({**XGB_PARAMS, "ds_id": ds_id, "rul_cap": cap, "n_features": X_dev.shape[1]})
+            mlflow.log_metrics(summary)
+            mlflow.xgboost.log_model(model, name="model", signature=mlflow.models.infer_signature(X_dev, oof))
+
+    logger.info("%s : CV RMSE %.2f ± %.2f, test RMSE %.2f ± %.2f", ds_id,
+                summary["cv_rmse_mean"], summary["cv_rmse_std"], summary["test_rmse_mean"], summary["test_rmse_std"])
+    return {"predictions": predictions, "per_unit": per_unit, "summary": summary, "importance": importance}
 
 
-def compare_cap_variants(
-    ds_id: str = "DS01",
-    experiment_name: str = "aerotwin-phase4-xgboost",
-) -> dict[str, object]:
-    """Phase 4.2 — entraîne capped et non-capped, compare sur l'échelle cappée
-    (seule échelle où les deux runs sont comparables), tague le meilleur run
-    MLflow avec `best_model=true`."""
-    logger.info("Run 1/2 : RUL cappée à %s ...", RUL_CAP)
-    capped = run_baseline(ds_id=ds_id, cap=RUL_CAP, experiment_name=experiment_name)
-    logger.info("Run 2/2 : RUL non cappée ...")
-    uncapped = run_baseline(ds_id=ds_id, cap=None, experiment_name=experiment_name)
-
-    rmse_capped = capped["comparable_test"]["rmse"]
-    rmse_uncapped = uncapped["comparable_test"]["rmse"]
-    winner = "capped" if rmse_capped <= rmse_uncapped else "uncapped"
-    best_run_id = capped["run_id"] if winner == "capped" else uncapped["run_id"]
-
-    mlflow.tracking.MlflowClient().set_tag(best_run_id, "best_model", "true")
-    logger.info(
-        "RMSE comparable (évalué sur RUL cappée à %s dans les deux cas) : capped=%.2f vs uncapped=%.2f -> meilleur = %s (run_id=%s)",
-        RUL_CAP, rmse_capped, rmse_uncapped, winner, best_run_id,
-    )
-    return {"capped": capped, "uncapped": uncapped, "winner": winner, "best_run_id": best_run_id}
+def write_results(results: dict[str, dict]) -> None:
+    lines = [
+        "# Résultats",
+        "",
+        "Généré par `python -m src.train --all`. Moyenne ± écart-type des métriques par moteur ; « tous cycles » est le",
+        "RMSE calculé sur l'ensemble des cycles du split. CV : leave-one-unit-out sur les moteurs dev.",
+        "",
+        "| DS | Mode de panne | Moteurs CV / test | RMSE CV | MAE CV | RMSE test | MAE test | RMSE test tous cycles |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for ds_id, r in results.items():
+        s, pu = r["summary"], r["per_unit"]
+        n_cv, n_test = (pu["split"] == "cv").sum(), (pu["split"] == "test").sum()
+        lines.append(
+            f"| {ds_id} | {config.NCMAPSS_FAULT_MODES[ds_id]} | {n_cv} / {n_test} "
+            f"| {s['cv_rmse_mean']:.2f} ± {s['cv_rmse_std']:.2f} | {s['cv_mae_mean']:.2f} ± {s['cv_mae_std']:.2f} "
+            f"| {s['test_rmse_mean']:.2f} ± {s['test_rmse_std']:.2f} | {s['test_mae_mean']:.2f} ± {s['test_mae_std']:.2f} "
+            f"| {s['test_rmse_all_cycles']:.2f} |"
+        )
+    lines += ["", "## Par moteur", "", "| DS | Split | Moteur | Cycles | RMSE | MAE |", "|---|---|---|---|---|---|"]
+    for ds_id, r in results.items():
+        for row in r["per_unit"].itertuples():
+            lines.append(f"| {ds_id} | {row.split} | {row.unit} | {row.n_cycles} | {row.rmse:.2f} | {row.mae:.2f} |")
+    RESULTS_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Phase 4 — Baseline XGBoost RUL")
-    parser.add_argument("--ds", type=str, default="DS01", choices=sorted(config.NCMAPSS_FAULT_MODES))
-    parser.add_argument("--cap", type=int, default=RUL_CAP, help="Plafond RUL (défaut 125)")
-    parser.add_argument("--no-cap", action="store_true", help="Désactive le plafonnement RUL")
-    parser.add_argument("--compare", action="store_true", help="Phase 4.2 : compare capped vs non-capped, tague le meilleur")
+    parser = argparse.ArgumentParser(description="XGBoost RUL par fichier N-CMAPSS")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--ds", choices=sorted(config.NCMAPSS_FAULT_MODES))
+    group.add_argument("--all", action="store_true", help="Tous les fichiers, écrit docs/resultats.md")
     args = parser.parse_args()
 
-    if args.compare:
-        result = compare_cap_variants(ds_id=args.ds)
+    if args.all:
+        write_results({ds_id: train_ds(ds_id) for ds_id in config.NCMAPSS_FAULT_MODES})
     else:
-        cap = None if args.no_cap else args.cap
-        result = run_baseline(ds_id=args.ds, cap=cap)
-    print(result)
+        print(train_ds(args.ds)["per_unit"].to_string(index=False))
 
 
 if __name__ == "__main__":

@@ -1,9 +1,4 @@
-"""Tests unitaires de src/transform.py — version N-CMAPSS.
-
-Principe : on fabrique de PETITS DataFrames en mémoire dont on connaît
-le résultat attendu à la main. Pas de fichier .h5, pas de réseau,
-pas de base de données -> les tests tournent en <1s, partout, toujours.
-"""
+"""Tests de src/transform.py sur petits DataFrames en mémoire (pas de .h5, pas de réseau)."""
 import pandas as pd
 import pytest
 
@@ -12,7 +7,7 @@ from src import transform
 
 @pytest.fixture
 def mini_1hz() -> pd.DataFrame:
-    """2 unités, 2 cycles chacune, 3 secondes par cycle — format 1 Hz."""
+    """2 unités, 2 cycles chacune, 3 secondes par cycle, format 1 Hz."""
     return pd.DataFrame({
         "unit":  [1]*6 + [2]*6,
         "cycle": [1, 1, 1, 2, 2, 2] * 2,

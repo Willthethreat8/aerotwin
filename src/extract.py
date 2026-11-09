@@ -97,9 +97,7 @@ def fetch_weather_history(
 ) -> pd.DataFrame:
     """Récupère l'historique météo horaire via Open-Meteo.
 
-    La météo est traitée comme contexte environnemental, elle n'est pas utilisée
-    directement dans le modèle de RUL de la phase 3 ; elle sert à enrichir les
-    analyses et le contexte de vol.
+    Contexte uniquement : la météo n'alimente pas le modèle de RUL.
     """
     params = {
         "latitude": lat,
@@ -141,8 +139,7 @@ def fetch_weather_history(
 def fetch_metar_live(station: str = config.METAR_STATION) -> dict | None:
     """Récupère le METAR courant (dernière heure) via l'Aviation Weather Center.
 
-    Phase 7 uniquement — usage dashboard temps réel, jamais comme feature du
-    modèle RUL (la météo surface n'alimente pas le modèle, cf. ROADMAP.md).
+    N'alimente pas le modèle de RUL.
     """
     url = "https://aviationweather.gov/api/data/metar"
     params = {"ids": station, "format": "json", "hours": 1}

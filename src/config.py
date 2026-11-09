@@ -1,8 +1,4 @@
-"""Configuration centrale du projet AeroTwin.
-
-Toutes les constantes et paramètres vivent ici — jamais en dur dans le code.
-Ce fichier est fourni complet (boilerplate) : lis-le, comprends-le, adapte si besoin.
-"""
+"""Constantes et paramètres du projet AeroTwin."""
 import os
 from pathlib import Path
 
@@ -27,7 +23,7 @@ NCMAPSS_FAULT_MODES = {
     "DS07": "LPT",
 }
 
-# (Legacy C-MAPSS — conservé pour la clause de repli, cf. ROADMAP.md Phase 3)
+# C-MAPSS FD001, plus utilisé depuis ADR-002
 CMAPSS_COLUMNS = (
     ["engine_id", "cycle", "setting_1", "setting_2", "setting_3"]
     + [f"sensor_{i}" for i in range(1, 22)]
@@ -45,7 +41,7 @@ LFBO_LON = 1.367
 OPEN_METEO_URL = "https://archive-api.open-meteo.com/v1/archive"
 METEO_HOURLY_VARS = "temperature_2m,surface_pressure,windspeed_10m"
 
-# --- Météo live (Aviation Weather Center — Phase 7 uniquement) ---
+# --- Météo live (Aviation Weather Center) ---
 METAR_STATION = os.getenv("METAR_STATION", "LFBO")
 
 # --- Base de données ---

@@ -1,4 +1,4 @@
-"""Tests unitaires de src/features.py — DataFrames synthétiques, pas de .h5."""
+"""Tests de src/features.py sur DataFrames synthétiques (pas de .h5)."""
 import pandas as pd
 import pytest
 
@@ -7,7 +7,7 @@ from src import features
 
 @pytest.fixture
 def mini_cycles() -> pd.DataFrame:
-    """3 moteurs, 2 cycles chacun — déjà agrégé au niveau cycle."""
+    """3 moteurs, 2 cycles chacun, déjà agrégé par cycle."""
     return pd.DataFrame({
         "unit": [1, 1, 2, 2, 3, 3],
         "cycle": [1, 2, 1, 2, 1, 2],
