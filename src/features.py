@@ -32,7 +32,7 @@ def build_cycle_features(split: str, dataset_path: str = config.NCMAPSS_DS01_PAT
 def encode_fc(X: pd.DataFrame) -> pd.DataFrame:
     """One-hot Fc sur des catégories fixes, pour garder les mêmes colonnes entre dev et test."""
     fc = pd.Categorical(X["Fc"], categories=FC_CATEGORIES)
-    dummies = pd.get_dummies(fc, prefix="Fc").astype(int)
+    dummies = pd.get_dummies(fc, prefix="Fc").astype("float64")
     return pd.concat([X.drop(columns=["Fc"]), dummies], axis=1)
 
 
