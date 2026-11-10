@@ -33,14 +33,15 @@ scikit-learn==1.9.1
 xgboost==3.4.1
 mlflow==3.18.0
 
-# --- Export du dashboard ---
+# --- Dashboard ---
 pyarrow==26.0.1
+streamlit==1.67.0
+plotly==7.1.0
 
 # --- Roadmap (décommenter au fur et à mesure des phases) ---
 # prefect            # Phase 3 — orchestration
 # dbt-core           # Phase 3 — transformations SQL
 # dbt-postgres       # Phase 3 — adapter PostGIS
-# streamlit          # Phase 6 — dashboard
 # folium             # Phase 6 — cartographie
 # fastapi            # Phase 8 — API de serving
 # uvicorn            # Phase 8 — serveur ASGI
