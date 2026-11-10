@@ -20,5 +20,5 @@ PostGIS 15 et pgAdmin dans `docker-compose.yml`, secrets externalisés dans `.en
   (ADR-006, ADR-009). Le modèle et le dashboard n'en dépendent pas.
 
 ## Sources
-- Commit `2528105`.
+- Commit `dcad387`.
 - Image `postgis/postgis:15-3.3`.

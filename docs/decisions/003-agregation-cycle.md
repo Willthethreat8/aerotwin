@@ -20,4 +20,4 @@ Agréger en une ligne par `(unit, cycle)` dans `aggregate_to_cycles`, immédiate
 - Les modèles séquentiels à 1 Hz (LSTM, CNN) sont exclus, ce qui est cohérent avec le périmètre (ADR-006).
 
 ## Sources
-- Commit `31f107f`, `src/transform.py`.
+- Commit `5df8433`, `src/transform.py`.

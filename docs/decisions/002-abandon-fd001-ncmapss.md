@@ -21,7 +21,7 @@ sont retirés.
   comparables et ne sont plus cités.
 
 ## Sources
-- Commit `31f107f`.
+- Commit `5df8433`.
 - M. Arias Chao, C. Kulkarni, K. Goebel, O. Fink, « Aircraft Engine Run-to-Failure Dataset under Real Flight
   Conditions for Prognostics and Diagnostics », Data, 6(1):5, 2021.
 - A. Saxena, K. Goebel, D. Simon, N. Eklund, « Damage Propagation Modeling for Aircraft Engine Run-to-Failure

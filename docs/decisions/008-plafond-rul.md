@@ -22,4 +22,4 @@ Pas de plafond : `RUL_CAP = None` dans `src/train.py`, même règle pour tous le
 
 ## Sources
 - `docs/data.md`.
-- Commit `8019140` (comparaison de la phase 4.2).
+- Commit `1540146` (comparaison de la phase 4.2).

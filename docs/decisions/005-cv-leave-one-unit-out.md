@@ -22,4 +22,4 @@ moteurs test officiels.
 - Les prédictions hors échantillon de chaque moteur dev servent aussi au dashboard (étape 4).
 
 ## Sources
-- Commit `2ec1656`, `src/train.py` (`cross_validate`).
+- Commit `c53fd57`, `src/train.py` (`cross_validate`).
