@@ -1,5 +1,19 @@
 # AeroTwin — Roadmap
 
+**Projet terminé (novembre 2026).** Ce document est conservé comme trace de la feuille de route initiale : le reste du texte n'a pas été mis à jour, seules les lignes « Statut » ont été ajoutées. Les raisons de la clôture sont dans [ADR-006](docs/decisions/006-cloture-projet.md) : périmètre trop large pour un projet solo, sujet ramené à son cœur, réorientation du portfolio.
+
+| Phase | Statut |
+|---|---|
+| 0-1 : base du projet, EDA FD001, trajectoires, météo | Réalisée |
+| 2 : exploration N-CMAPSS | Réalisée |
+| 3 : ETL `src/` | Réalisée, sans Prefect ni dbt, abandonnés ([ADR-006](docs/decisions/006-cloture-projet.md)) |
+| 4 : machine learning et MLflow | 4.1 et 4.2 réalisées, puis modèle par fichier ; LSTM / Transformer et détection d'anomalies abandonnés ([ADR-006](docs/decisions/006-cloture-projet.md)) |
+| 5 : CI/CD | Réduite à une CI Pytest ([ADR-006](docs/decisions/006-cloture-projet.md)) |
+| 6 : dashboard | Réduite à trois pages sans météo ni carte des trajectoires ([ADR-006](docs/decisions/006-cloture-projet.md)) |
+| 7 : streaming temps réel | Abandonnée ([ADR-006](docs/decisions/006-cloture-projet.md)) |
+| 8 : API FastAPI et déploiement cloud | Abandonnée ([ADR-006](docs/decisions/006-cloture-projet.md)) |
+| 9 : IA générative et agents | Abandonnée ([ADR-006](docs/decisions/006-cloture-projet.md)) |
+
 ## État actuel
 
 ### Fait (Phases 0 & 1) ✅
@@ -107,6 +121,8 @@ DS03+ changent les conditions opératoires → **domain shift**. Trois approches
 
 ### Phase 2 — Exploration N-CMAPSS
 
+**Statut : Réalisée.**
+
 **Objectif : comprendre le HDF5 avant de coder quoi que ce soit**
 
 - Télécharger `N-CMAPSS_DS01-005.h5` depuis NASA Prognostics Repository
@@ -120,6 +136,8 @@ DS03+ changent les conditions opératoires → **domain shift**. Trois approches
 ---
 
 ### Phase 3 — ETL `src/`
+
+**Statut : Réalisée. Prefect et dbt abandonnés, voir [ADR-006](docs/decisions/006-cloture-projet.md).**
 
 **Objectif : sortir des notebooks, code réutilisable et propre**
 
@@ -148,6 +166,8 @@ Le 1 Hz brut ne sort jamais de `extract → aggregate`.
 ---
 
 ### Phase 4 — Machine Learning + MLflow
+
+**Statut : 4.1 et 4.2 réalisées. LSTM / Transformer et détection d'anomalies abandonnés, voir [ADR-006](docs/decisions/006-cloture-projet.md).**
 
 **Objectif : modèle de prédiction RUL traçable et reproductible**
 
@@ -181,6 +201,8 @@ Le 1 Hz brut ne sort jamais de `extract → aggregate`.
 
 ### Phase 5 — CI/CD GitHub Actions
 
+**Statut : Réduite à une CI Pytest (`.github/workflows/tests.yml`), voir [ADR-006](docs/decisions/006-cloture-projet.md).**
+
 ```yaml
 name: CI
 on: [push]
@@ -200,6 +222,8 @@ jobs:
 
 ### Phase 6 — Dashboard Streamlit
 
+**Statut : Réduite à trois pages, sans météo ni carte des trajectoires, voir [ADR-006](docs/decisions/006-cloture-projet.md).**
+
 **Vue Flotte**
 - Tableau moteurs : RUL prédit, statut (OK / Attention / Critique)
 - Alertes Anomaly Detection en temps réel
@@ -217,6 +241,8 @@ jobs:
 ---
 
 ### Phase 7 — Pipeline Streaming Temps Réel (ADS-B → Kafka → Spark → Lakehouse)
+
+**Statut : Abandonnée, voir [ADR-006](docs/decisions/006-cloture-projet.md).**
 
 **Objectif : passer du batch au temps réel sur données live — la compétence la plus demandée en 2026**
 
@@ -249,6 +275,8 @@ jobs:
 
 ### Phase 8 — API FastAPI + Déploiement Cloud
 
+**Statut : Abandonnée, voir [ADR-006](docs/decisions/006-cloture-projet.md). Le dashboard est préparé pour Streamlit Community Cloud.**
+
 **FastAPI /predict**
 ```
 POST /predict
@@ -279,6 +307,8 @@ POST /predict
 ---
 
 ### Phase 9 — IA Générative & Agents
+
+**Statut : Abandonnée, voir [ADR-006](docs/decisions/006-cloture-projet.md).**
 
 **Objectif : démontrer une infrastructure de données AI-ready — 2e sujet de recrutement 2026 avec le streaming**
 

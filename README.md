@@ -1,269 +1,141 @@
 # AeroTwin
 
-**Jumeau numérique d'une flotte aéronautique — maintenance prédictive sur données capteurs, météo et trajectoires spatiales.**
+AeroTwin predicts the remaining useful life (RUL) of turbofan engines on NASA's simulated N-CMAPSS dataset, with one XGBoost model per file across six failure modes and 65 engines.
+Results are reported per engine with the between-engine standard deviation; DS02 is included only for comparison with published work.
+A three-page Streamlit dashboard reads precomputed Parquet files. The project was closed in November 2026.
 
-> Projet portfolio — Ingénieur ESIR (Systèmes d'Information), promotion 2026
-> Objectif : poste de **Data Engineer** dans l'écosystème aéronautique toulousain.
+**Statut : Projet terminé (novembre 2026)**
 
-AeroTwin construit le jumeau numérique d'une flotte d'avions opérant depuis **Toulouse-Blagnac (LFBO)**. Le système fusionne des données de capteurs thermodynamiques (NASA N-CMAPSS), des données météo réelles (API METAR / Open-Meteo) et des trajectoires GPS, avec pour objectif final de prédire la **Durée de Vie Résiduelle (RUL)** des moteurs.
+## Ce que fait le projet
 
----
+AeroTwin estime la durée de vie résiduelle (RUL) de moteurs d'avion à partir du jeu de données simulé N-CMAPSS de la NASA. Les mesures à 1 Hz sont agrégées par cycle de vol, puis un modèle XGBoost est entraîné par fichier, un fichier correspondant à un mode de panne. Les prédictions sont exportées en Parquet et consultées dans un dashboard Streamlit, qui ne lit jamais le HDF5.
 
-## État du projet en un coup d'œil
-
-Le projet est en construction, développé par phases. Cette section distingue volontairement **ce qui fonctionne réellement aujourd'hui** de ce qui est planifié. La feuille de route détaillée se trouve dans [`ROADMAP.md`](ROADMAP.md).
-
-| | Phase | Statut |
-|---|---|---|
-| ✅ | 0-1 — Base du projet + legacy FD001 (Docker, secrets, EDA, trajectoires, météo) | **Fait** |
-| ✅ | 2 — Exploration & compréhension N-CMAPSS | **Fait** |
-| ✅ | 3 — ETL production (`src/` : extract, transform, load, pipeline) — flux complet validé | **Fait** |
-| ✅ | 4.1 — Baseline XGBoost (RMSE 11.79 sur le split test officiel) | **Fait** |
-| ⏳ | 4.2-4.4 — MLflow avancé, LSTM, Anomaly Detection | Planifié |
-| ⏳ | 5 — CI/CD (GitHub Actions) | Planifié |
-| ⏳ | 6 — Dashboard Streamlit | Planifié |
-| ⏳ | 7 — Streaming temps réel (ADS-B → Kafka → Spark → Iceberg) | Planifié |
-| ⏳ | 8 — API FastAPI + déploiement cloud (GCP Cloud Run) | Planifié |
-| ⏳ | 9 — Couche IA générative & agentique (RAG, agents) | Planifié |
-
----
-
-## ✅ Ce qui tourne aujourd'hui
-
-Voici les composants concrets, exécutables, déjà livrés et validés.
-
-**Base du projet (Phase 0)**
-Environnement reproductible via `docker-compose` : PostGIS 15 + pgAdmin, avec volumes persistants. Les identifiants sont externalisés dans un fichier `.env` (jamais committé — voir [installation](#installation--lancement-en-local)).
-
-**Exploration N-CMAPSS (Phase 2)**
-- Notebook [`notebooks/phase2/05_exploration_ncmapss.ipynb`](notebooks/phase2/05_exploration_ncmapss.ipynb) : lecture des 6 blocs HDF5 (`A`, `W`, `X_s`, `X_v`, `T`, `Y`), justification des blocs retenus pour le ML (`A`, `W`, `X_s`, `Y`) vs exclus (`X_v`, `T` — data leakage), structure `unit`/`cycle`, distribution des conditions de vol, dérive d'un capteur de température avant panne, recherche de colonnes constantes au niveau cycle.
-- Les notebooks `01` à `04` (exploration FD001, génération de trajectoires, scraper météo, ingestion PostGIS — dataset legacy) ont été supprimés : leur logique est entièrement reprise et testée dans `src/` (`extract.py`, `transform.py`, `load.py`), y compris le fetch METAR live (`fetch_metar_live`) qui n'existait jusque-là que dans le notebook.
-
-**ETL production (Phase 3 — `src/`)**
-- `src/config.py` : configuration centralisée (chemins, `.env`, paramètres de feature engineering)
-- `src/extract.py` : lecture du HDF5 N-CMAPSS (`read_ncmapss`) + contexte météo historique Open-Meteo (`fetch_weather_history`)
-- `src/transform.py` : agrégation `(unit, cycle)`, suppression des colonnes constantes, rolling features, génération de trajectoires GeoPandas
-- `src/load.py` : chargement PostGIS (tabulaire et géospatial) via SQLAlchemy / GeoAlchemy2
-- `src/pipeline.py` : orchestration extract → transform → load, exécutable en CLI (`python -m src.pipeline`)
-- **11/11 tests Pytest** passent (`tests/test_phase3_etl.py`, `tests/test_transform.py`, `tests/test_pipeline_p1.py`), y compris le test anti data-leakage sur les rolling features.
-- **Flux complet exécuté sur le vrai dataset** `N-CMAPSS_DS01-005.h5` : 4 906 636 lignes 1 Hz → 553 cycles agrégés (6 moteurs) → rolling features → chargement PostGIS, sans erreur.
-- Documentation : [`docs/phase3_etl.md`](docs/phase3_etl.md).
-- Reste en amélioration future, non bloquant pour le ML : orchestration **Prefect** (`src/pipelines/flow_ds01.py` est un squelette non implémenté) et transformations SQL versionnées **dbt** — le pipeline actuel s'appuie sur une orchestration Python simple (`pipeline.py`), suffisante pour un flux fiable et reproductible.
-
-**Baseline ML (Phase 4.1 — `src/features.py`, `src/train.py`)**
-- Features : conditions de vol `alt`/`Mach`/`TRA`/`T2` (mean/std/min/max par cycle) + `Fc` one-hot + rolling mean/std sur les 14 capteurs physiques (`X_s`)
-- **XGBoost**, cross-validation leave-one-unit-out sur le split dev (6 moteurs, zéro fuite inter-moteur), évaluation finale sur le split test officiel (moteurs 7-10, jamais vu à l'entraînement)
-- **RMSE test = 11.79** (MAE 9.24, R² 0.77), RUL plafonnée à 125
-- Tracking **MLflow** (params, métriques CV + test, modèle) — **16/16 tests Pytest** au total (`tests/test_features.py`, `tests/test_train.py`)
-
----
-
-## ⏳ Ce qui est planifié
-
-Le détail, les choix techniques et le découpage en tâches figurent dans [`ROADMAP.md`](ROADMAP.md). En résumé :
-
-- **Phase 4.2-4.4 — Machine Learning (suite)** : comparaison capped/non-capped RUL et sauvegarde du meilleur modèle en artefact MLflow (4.2), architecture séquentielle LSTM/Transformer (4.3), Anomaly Detection en module parallèle (4.4).
-- **Phase 5 — CI/CD** : exécution automatique de Pytest via **GitHub Actions** à chaque push.
-- **Phase 6 — Dashboard** : interface **Streamlit** (vue flotte, drill-down moteur, vue météo, carte des trajectoires).
-- **Phase 7 — Streaming temps réel** : positions ADS-B live (OpenSky) autour de LFBO → **Kafka** → **Spark Structured Streaming** → tables **Apache Iceberg** (requêtées via DuckDB), agrégats servis par PostGIS. Architecture médaillon bronze/silver/gold, batch et streaming coexistant.
-- **Phase 8 — Déploiement** : API **FastAPI** `/predict` + modèle, déploiement sur **GCP Cloud Run**.
-- **Phase 9 — IA générative & agents** : pipeline d'embeddings **pgvector**, **Fleet Copilot** (RAG hybride vectoriel + text-to-SQL), agent de diagnostic **LangGraph** déclenché par Prefect.
-
----
-
-## Couche IA générative & agentique (Phase 9)
-
-> L'infrastructure de données AI-ready est devenue une compétence centrale du data engineering. Cette phase étend AeroTwin au-delà du ML classique : les données de la flotte deviennent exploitables par des LLM et des agents.
-
-- **Pipeline AI-ready** : vectorisation des états moteur et rapports d'anomalies dans **pgvector**, indexation orchestrée par Prefect.
-- **Fleet Copilot (RAG)** : assistant conversationnel répondant en langage naturel sur l'état de la flotte — retrieval hybride (vectoriel pgvector + text-to-SQL sur PostGIS), avec évaluation de la fidélité des réponses.
-- **Agent de diagnostic** : workflow LangGraph multi-étapes détection anomalie → contexte historique → corrélation stream ADS-B/météo → rapport structuré → alerte.
-- **Recommandations opérationnelles** : croiser RUL prédit + météo + trajectoire pour suggérer des ajustements de vol réduisant l'usure moteur et la consommation de carburant.
-
-Stack : LlamaIndex / LangGraph · API LLM · pgvector + PostGIS comme store hybride.
-
----
-
-## Choix techniques & décisions d'architecture
-
-Les décisions structurantes sont documentées pour expliquer le *pourquoi*, pas seulement le *quoi*.
-
-**N-CMAPSS plutôt que C-MAPSS FD001 (Phase 1).** FD001 est un dataset synthétique sans timestamps ni coordonnées réelles. N-CMAPSS (NASA 2021, HDF5) contient de vrais profils de vol avec phases (montée, croisière, descente), conditions atmosphériques à l'altitude de vol, et une dégradation physiquement cohérente — confirmé par la dérive de capteur observée en Phase 2. FD001 reste dans le repo comme clause de repli documentée.
-
-**Agrégation au niveau cycle, le plus tôt possible (Phase 3).** DS01 = millions de lignes à 1 Hz. Résumé par `(unit, cycle)`, on retombe sur quelques centaines de lignes : EDA, rolling features, XGBoost et PostGIS restent légers. Le 1 Hz brut ne sort jamais de `extract → aggregate`.
-
-**Trajectoires simulées plutôt que données radar réelles.** Associer arbitrairement de vraies trajectoires ADS-B aux données d'usure introduirait un biais massif dans le futur modèle. La simulation garantit l'intégrité : on génère une trajectoire cohérente avec la classe de vol et l'altitude de chaque moteur. Une V2 pourrait exploiter N-CMAPSS + OpenSky via Dynamic Time Warping.
-
-**API METAR plutôt que web scraping.** Le scraping HTML de la NOAA était fragile (changements de structure, serveurs FTP instables). L'API REST de l'Aviation Weather Center fournit du JSON structuré et fiable.
-
-**Prefect plutôt qu'Airflow (Phase 3+).** Airflow est surdimensionné pour un projet solo. Prefect est Python-natif, sans infrastructure supplémentaire, et s'intègre en décorant les fonctions existantes (`@flow`, `@task`) déjà écrites et testées dans `src/`.
-
-**dbt pour les transformations SQL (Phase 3+).** Permet de versionner les modèles SQL (staging → marts), de les tester et de documenter le lineage, avec une intégration native à PostGIS via `dbt-postgres`.
-
-**Kafka + Spark Structured Streaming plutôt qu'un simple consumer Python (Phase 7).** Le volume ADS-B autour de LFBO ne l'exige pas techniquement, mais Kafka/Spark est le standard industriel du streaming : le choix démontre la compétence la plus demandée du marché tout en restant exécutable en local (Kafka KRaft en docker-compose, Spark en mode local).
-
-**Apache Iceberg en couche lakehouse, PostGIS en serving (Phase 7).** Les données brutes et enrichies du stream vont dans des tables Iceberg (PyIceberg + DuckDB) — open table format, time travel, schema evolution. PostGIS ne garde que les agrégats servant le dashboard et l'API. Architecture médaillon : bronze → silver (Iceberg) → gold (PostGIS).
-
-**Streamlit plutôt que Grafana (Phase 6).** Dashboard complet en Python pur, connecté directement à PostGIS, plus rapide à livrer pour un portfolio solo.
-
-**GCP Cloud Run comme cible (Phase 8).** Crédits gratuits, compatibilité Docker native, scaling automatique. Azure est identifié comme objectif moyen terme vu son omniprésence dans l'écosystème Airbus/Toulouse.
-
----
-
-## Stack technique
-
-Légende : ✅ en place · ⏳ planifié.
-
-| Couche | Outil | Rôle | Statut |
+| Fichier | Mode de panne | Moteurs dev / test | Usage |
 |---|---|---|---|
-| Infrastructure | Docker + docker-compose | Environnement reproductible | ✅ |
-| Stockage | PostGIS (PostgreSQL spatial) | Données tabulaires + géographiques | ✅ |
-| ETL | Python (`src/`) | Extract / Transform / Load | ✅ |
-| Tests | Pytest | Sécurisation du pipeline (16/16 verts) | ✅ |
-| Source météo | Open-Meteo (historique) + API REST METAR/AWC (live) | Données environnementales LFBO | ✅ |
-| Orchestration | Prefect | Automatisation des flows | ⏳ |
-| Transformation SQL | dbt | Modélisation et tests sur PostGIS | ⏳ |
-| ML | XGBoost + scikit-learn | Prédiction RUL (baseline 4.1 : RMSE 11.79) | ✅ |
-| Experiment tracking | MLflow | Versioning des modèles | ✅ |
-| CI/CD | GitHub Actions | Tests automatiques sur push | ⏳ |
-| Dashboard | Streamlit + folium | Visualisation flotte + trajectoires | ⏳ |
-| Streaming | Kafka + Spark Structured Streaming | Ingestion et traitement ADS-B live | ⏳ |
-| Lakehouse | Apache Iceberg + DuckDB | Open table format, bronze/silver | ⏳ |
-| API | FastAPI | Exposition du modèle en REST | ⏳ |
-| Cloud | GCP Cloud Run | Déploiement public | ⏳ |
-| GenAI | pgvector + LlamaIndex / LangGraph + API LLM | RAG, agent de diagnostic | ⏳ |
+| DS01 | HPT | 6 / 4 | Flotte |
+| DS03 | HPT+LPT | 9 / 6 | Flotte |
+| DS04 | Fan | 6 / 4 | Flotte |
+| DS05 | HPC | 6 / 4 | Flotte |
+| DS06 | LPC+HPC | 6 / 4 | Flotte |
+| DS07 | LPT | 6 / 4 | Flotte |
+| DS02 | HPT ou HPT+LPT | 6 / 3 | Comparaison à la littérature |
 
----
+## Dashboard
 
-## Architecture cible
+La page Flotte affiche l'état des 65 moteurs à un cycle choisi. Le statut dépend d'une RUL prudente, RUL prédite moins le RMSE test du fichier : Critique sous 15 cycles, Attention sous 30 ([ADR-009](docs/decisions/009-streamlit-export-parquet.md)).
+
+![Page Flotte](docs/img/flotte.png)
+
+La page Moteur montre la RUL prédite contre la RUL réelle, les capteurs et la bascule de sain à dégradé.
+
+![Page Moteur](docs/img/moteur.png)
+
+La page Modèle compare les erreurs entre fichiers et par moteur, puis détaille résidus et importance des variables.
+
+![Page Modèle](docs/img/modele.png)
+
+## Résultats
+
+Moyenne ± écart-type entre moteurs, en cycles. La CV est en leave-one-unit-out sur les moteurs dev, le test porte sur les moteurs test officiels. Le détail par moteur est dans [`docs/resultats.md`](docs/resultats.md#par-moteur), généré par `python -m src.train --all`.
+
+| Fichier | Mode de panne | Moteurs CV / test | RMSE CV | MAE CV | RMSE test | MAE test |
+|---|---|---|---|---|---|---|
+| DS01 | HPT | 6 / 4 | 18.38 ± 3.02 | 14.38 ± 3.04 | 11.89 ± 2.01 | 9.50 ± 1.81 |
+| DS02 | HPT ou HPT+LPT | 6 / 3 | 11.15 ± 2.10 | 8.19 ± 1.22 | 13.80 ± 6.33 | 11.26 ± 6.18 |
+| DS03 | HPT+LPT | 9 / 6 | 12.87 ± 2.14 | 10.06 ± 1.91 | 11.55 ± 2.79 | 8.67 ± 1.74 |
+| DS04 | Fan | 6 / 4 | 24.75 ± 2.87 | 20.19 ± 2.58 | 23.60 ± 4.90 | 19.55 ± 4.49 |
+| DS05 | HPC | 6 / 4 | 16.55 ± 2.95 | 13.34 ± 2.55 | 14.34 ± 3.24 | 11.43 ± 2.19 |
+| DS06 | LPC+HPC | 6 / 4 | 16.24 ± 3.52 | 12.85 ± 2.69 | 14.36 ± 2.55 | 11.74 ± 2.10 |
+| DS07 | LPT | 6 / 4 | 16.89 ± 2.54 | 13.31 ± 1.79 | 14.66 ± 1.81 | 11.35 ± 1.02 |
+
+Avec 3 à 6 moteurs de test par fichier, les écarts entre CV et test relèvent surtout de la variance entre moteurs. DS04 (Fan) est le mode de panne le plus difficile à pronostiquer.
+
+## Situation par rapport à la littérature
+
+Les approches deep learning publiées sur ce découpage de DS02 obtiennent des erreurs nettement plus faibles que notre baseline : RMSE test de 7.89 ± 0.12 (FNN) et 4.95 ± 0.15 (CNN) sur données seules, 4.22 ± 0.10 (FNN) et 4.14 ± 0.09 (CNN) en approche hybride. Leur RMSE est calculé par pas de temps (échantillons à 0,1 Hz), avec un écart-type sur 5 exécutions ; le nôtre est calculé par cycle, avec un écart-type entre moteurs. La comparaison n'est donc pas directe. Notre baseline XGBoost sur agrégats par cycle n'a pas cherché à les égaler : c'est un choix de périmètre ([ADR-006](docs/decisions/006-cloture-projet.md)).
+
+Source des chiffres : Arias Chao, M. ; Kulkarni, C. ; Goebel, K. ; Fink, O. Fusing Physics-based and Deep Learning Models for Prognostics. Préprint arXiv:2003.00732v2, 27 octobre 2020, table 5. https://arxiv.org/abs/2003.00732
+
+Version publiée, non consultée : Arias Chao, M. ; Kulkarni, C. ; Goebel, K. ; Fink, O. Fusing physics-based and deep learning models for prognostics. Reliability Engineering & System Safety, vol. 217, art. 107961, janvier 2022. https://doi.org/10.1016/j.ress.2021.107961
+
+## Limites
+
+- Les données sont simulées : aucune validation sur des données réelles.
+- Il y a peu de moteurs par mode de panne, et la moyenne d'un fichier dépend fortement d'un seul moteur (DS02 en test : 7.76 à 20.39 selon le moteur).
+- Les hyperparamètres sont identiques pour tous les fichiers, sans recherche : le modèle reste une baseline.
+- DS02 mêle deux modes de panne dans un même fichier.
+- La marge de la RUL prudente vient du RMSE test, estimé sur ces mêmes moteurs : la règle de statut n'a pas été évaluée séparément. Les seuils ne sont pas calibrés sur un coût opérationnel.
+- Les trajectoires simulées et la météo restent dans le dépôt mais n'alimentent ni le modèle ni le dashboard.
+
+## Ce que j'ai appris
+
+> Brouillon, à réécrire par l'auteur.
+
+- Un chiffre n'a de valeur que s'il est comparable : la référence « RMSE 36.89 » venait d'un projet FD001 en split aléatoire et a été retirée.
+- Avec quelques moteurs de test, un bon score peut être un effet de variance : sur DS01, le RMSE test (11.89) est meilleur que la CV (18.38). Publier les erreurs par moteur et l'écart-type est plus honnête qu'un chiffre unique.
+- Un réglage doit prouver son effet : le plafond RUL à 125 ne faisait rien, la RUL maximale étant de 99.
+- La fuite de données se traite à la conception : exclusion des groupes `X_v` et `T`, validation croisée par moteur (ADR-004, ADR-005).
+- Finir demande de réduire : neuf phases prévues pour un projet solo, ramenées à un modèle honnête, un dashboard et une documentation (ADR-006).
+- Une vérification doit être réellement vérifiée : un commit a été poussé avec deux tests en échec parce qu'un pipe vers `tail` masquait le code de retour de pytest.
+
+## Pistes non retenues
+
+Ces idées ont été écartées lors de la clôture ([ADR-006](docs/decisions/006-cloture-projet.md)) et ne sont pas codées.
+
+- LSTM / Transformer pour le pronostic, et détection d'anomalies.
+- Orchestration Prefect et transformations SQL dbt.
+- Streaming ADS-B avec Kafka, Spark et lakehouse Iceberg.
+- API FastAPI et déploiement sur GCP Cloud Run.
+- Couche d'IA générative : RAG, agents.
+- Carte des trajectoires dans le dashboard.
+- Fichiers DS08a, DS08c et DS08d, qui dégradent plusieurs composants à la fois ([ADR-007](docs/decisions/007-jeux-de-donnees.md), [ADR-010](docs/decisions/010-ajout-ds02.md)).
+
+## Chronologie
+
+Le détail est dans [`docs/CHRONOLOGIE.md`](docs/CHRONOLOGIE.md).
 
 ```mermaid
-graph TD
-    subgraph Sources
-        D1[NASA C-MAPSS / N-CMAPSS]
-        D2[API METAR LFBO]
-        D3[OpenSky ADS-B live]
-    end
-
-    subgraph ETL [ETL batch - src/]
-        EX[extract.py]
-        TR[transform.py]
-        LD[load.py]
-        D1 --> EX
-        D2 --> EX
-        EX --> TR --> LD
-    end
-
-    subgraph Streaming [Streaming - Phase 7]
-        KF[Kafka]
-        SP[Spark Structured Streaming]
-        ICE[(Iceberg bronze/silver)]
-        D3 --> KF --> SP --> ICE
-    end
-
-    subgraph Orchestration
-        PF[Prefect Flow]
-        LD --> PF
-    end
-
-    subgraph Stockage
-        DB[(PostGIS gold + pgvector)]
-        PF --> DB
-        SP --> DB
-    end
-
-    subgraph ML
-        XGB[XGBoost]
-        MLF[MLflow]
-        DB --> XGB
-        XGB --> MLF
-    end
-
-    subgraph Serving
-        STR[Streamlit Dashboard]
-        API[FastAPI /predict]
-        DB --> STR
-        DB --> API
-    end
-
-    subgraph Cloud
-        GCP[GCP Cloud Run]
-        API --> GCP
-    end
+timeline
+    title AeroTwin
+    2026-03 : Infrastructure Docker PostGIS : EDA C-MAPSS FD001 : Ingestion trajectoires et météo
+    2026-09 : Pivot vers N-CMAPSS DS01 : ETL src/ : Baseline XGBoost
+    2026-11 : Audit : Décision de clôture : Extension DS01, DS03 à DS07 : Incident iCloud : Modèle par fichier : Ajout de DS02 pour comparaison : Export Parquet du dashboard : Dashboard Streamlit : CI GitHub Actions : Documentation finale
 ```
 
-*Schéma de l'architecture visée. Aujourd'hui, les blocs Sources, ETL (`src/`) et Stockage (PostGIS) sont opérationnels et validés de bout en bout ; l'orchestration Prefect encadrant `load.py` reste à écrire.*
+## Décisions d'architecture
 
----
+| ADR | Décision | Statut |
+|---|---|---|
+| [001](docs/decisions/001-docker-postgis.md) | Infrastructure Docker + PostGIS | Acceptée |
+| [002](docs/decisions/002-abandon-fd001-ncmapss.md) | Abandon de C-MAPSS FD001 au profit de N-CMAPSS | Acceptée |
+| [003](docs/decisions/003-agregation-cycle.md) | Agrégation 1 Hz vers cycle le plus tôt possible | Acceptée |
+| [004](docs/decisions/004-exclusion-xv-t.md) | Exclusion des groupes `X_v` et `T` | Acceptée |
+| [005](docs/decisions/005-cv-leave-one-unit-out.md) | Validation croisée leave-one-unit-out | Acceptée |
+| [006](docs/decisions/006-cloture-projet.md) | Abandon des phases 5 à 9 et clôture du projet | Acceptée |
+| [007](docs/decisions/007-jeux-de-donnees.md) | Jeux de données retenus | Remplacée par ADR-010 |
+| [008](docs/decisions/008-plafond-rul.md) | Suppression du plafond RUL | Acceptée |
+| [009](docs/decisions/009-streamlit-export-parquet.md) | Streamlit + export Parquet | Acceptée |
+| [010](docs/decisions/010-ajout-ds02.md) | Ajout de DS02 pour comparaison à la littérature | Acceptée |
 
-## Installation & lancement en local
+## Reproduire les résultats
 
-**Prérequis** : Docker, Python 3.9+.
+Prérequis : Python 3.13 et environ 51 Go libres pour l'archive N-CMAPSS (15,8 Go), les sept `.h5` extraits (20,6 Go) et la marge de 15 Go contrôlée par le script.
 
 ```bash
-# 1. Cloner le dépôt puis créer le fichier d'environnement
-cp .env.example .env
-#    Éditer .env et remplacer les mots de passe par défaut
-
-# 2. Démarrer PostGIS + pgAdmin
-docker compose up -d
-docker ps          # vérifier que les conteneurs sont "Up"
-
-# 3. Créer l'environnement Python et installer les dépendances
-python3 -m venv venv
+python3.13 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-# 4. Lancer le pipeline ETL de production sur le dataset N-CMAPSS
-python -m src.pipeline --dataset data/raw/ncmapss/N-CMAPSS_DS01-005.h5 --split dev
-
-# 5. Lancer les tests
-pytest tests/ -v
-
-# 6. (optionnel) Explorer via les notebooks
-jupyter lab
+python -m scripts.download_ncmapss     # archive officielle NASA, écrit docs/data.md
+python -m src.train --all              # entraîne les modèles, écrit docs/resultats.md
+python -m src.export_dashboard         # écrit data/dashboard/*.parquet
+streamlit run dashboard/app.py         # depuis la racine du dépôt
+pytest tests/ -v                       # sur fixtures, sans .h5
 ```
 
-pgAdmin est disponible sur `http://localhost:8080`.
-Connexion PostGIS : `host=localhost port=5432 db=aerotwin_db` (identifiants définis dans votre `.env`).
+Avec le Python de python.org sur macOS, le téléchargement demande de préfixer la commande par `SSL_CERT_FILE="$(python -m certifi)"`. Le script laisse par défaut 15 Go libres après extraction.
 
-> ⚠️ Les credentials ne sont **jamais** committés : `.env` est ignoré par Git. Seul `.env.example` (sans secret) est versionné.
-
----
-
-## Structure du dépôt
-
-```
-aerotwin_project/
-├── data/
-│   ├── raw/              # NASA N-CMAPSS (HDF5), C-MAPSS FD001 — gitignorés
-│   └── processed/        # Météo historique, trajectoires GeoJSON
-├── notebooks/
-│   └── phase2/           # Exploration N-CMAPSS (05_exploration_ncmapss.ipynb)
-├── src/                  # ETL (extract, transform, load, pipeline) + baseline ML (features, train)
-│   └── pipelines/        # Flow Prefect (squelette, à écrire)
-├── tests/                # Tests Pytest (16/16 verts)
-├── docs/                 # Documentation de la Phase 3 (phase3_etl.md)
-├── docker-compose.yml    # PostGIS + pgAdmin
-├── requirements.txt      # Dépendances Python
-├── pyproject.toml        # Métadonnées du package + config Pytest
-├── .env.example          # Modèle de configuration (à copier en .env)
-├── README.md             # Ce fichier
-└── ROADMAP.md             # Feuille de route détaillée & décisions techniques
-```
-
----
-
-## Pertinence pour le secteur aéronautique toulousain
-
-| Acteur | Angle | Ce qu'AeroTwin démontre |
-|---|---|---|
-| **Airbus / sous-traitants** | Maintenance prédictive, données capteurs | Pipeline ETL de bout en bout, PostGIS spatial, RUL (cible Phase 4) |
-| **Safran** | Digital twin, séries temporelles | Architecture jumeau numérique, dégradation physique N-CMAPSS |
-| **Sopra Steria / Capgemini** | Conseil Data & IA industrie aéro | Stack de bout en bout, CI/CD, cloud (cible) |
-| **OpenAirlines** | Optimisation des opérations + IA | Streaming ADS-B temps réel, couche GenAI / agents (Phases 7 & 9) |
-
----
+Le dashboard et les tests fonctionnent sans télécharger les données, à partir des Parquet versionnés. La chaîne ETL vers PostGIS (`docker compose up -d`, `.env` à créer depuis `.env.example`, puis `python -m src.pipeline --ds DS01 --split dev`) reste disponible mais n'est pas nécessaire au modèle.
 
 ## Déploiement sur Streamlit Community Cloud
 
@@ -275,10 +147,8 @@ Dans Community Cloud, créer une application avec les réglages suivants :
 
 Community Cloud installe automatiquement `dashboard/requirements.txt`, car il cherche le fichier de dépendances d'abord à côté du point d'entrée. Le thème est lu dans `.streamlit/config.toml`, à la racine du dépôt. Les données viennent de `data/dashboard/*.parquet`, versionnés dans le dépôt : aucun `.h5` n'est nécessaire.
 
----
-
 ## Documents
 
-- [Feuille de route détaillée & décisions techniques (ROADMAP.md)](ROADMAP.md)
-- [Documentation Phase 3 — ETL production (docs/phase3_etl.md)](docs/phase3_etl.md)
-- [Notebook d'exploration N-CMAPSS (notebooks/phase2/05_exploration_ncmapss.ipynb)](notebooks/phase2/05_exploration_ncmapss.ipynb)
+- [Résultats](docs/resultats.md), [données](docs/data.md), [chronologie](docs/CHRONOLOGIE.md)
+- [Changelog](CHANGELOG.md), [feuille de route initiale](ROADMAP.md)
+- [Documentation de l'ETL](docs/phase3_etl.md), [exploration N-CMAPSS](notebooks/phase2/05_exploration_ncmapss.ipynb)

@@ -5,7 +5,7 @@ timeline
     title AeroTwin
     2026-03 : Infrastructure Docker PostGIS : EDA C-MAPSS FD001 : Ingestion trajectoires et météo
     2026-09 : Pivot vers N-CMAPSS DS01 : ETL src/ : Baseline XGBoost
-    2026-11 : Audit : Décision de clôture : Extension DS01, DS03 à DS07 : Incident iCloud : Modèle par fichier : Ajout de DS02 pour comparaison : Export Parquet du dashboard : Dashboard Streamlit : CI GitHub Actions
+    2026-11 : Audit : Décision de clôture : Extension DS01, DS03 à DS07 : Incident iCloud : Modèle par fichier : Ajout de DS02 pour comparaison : Export Parquet du dashboard : Dashboard Streamlit : CI GitHub Actions : Documentation finale
 ```
 
 | Date | Changement | Pourquoi | Référence |
@@ -33,3 +33,4 @@ timeline
 | 2026-11-10 | Étape 5 : dashboard Streamlit à trois pages (`dashboard/app.py`, `dashboard/pages/`), page Flotte à un cycle observé plutôt qu'au dernier cycle, seuils 15 et 30 cycles, captures dans `docs/img/` | Au dernier cycle, la RUL réelle vaut 0 pour tous les moteurs : la flotte entière serait Critique | [ADR-009](decisions/009-streamlit-export-parquet.md) |
 | 2026-11-10 | Statuts de la page Flotte calculés sur une RUL prudente (RUL prédite moins le RMSE test du fichier) ; instructions de déploiement dans le README | Une alerte manquée coûte plus qu'une fausse alerte, et l'erreur varie selon le mode de panne | [ADR-009](decisions/009-streamlit-export-parquet.md) |
 | 2026-11-10 | Étape 6 : workflow `.github/workflows/tests.yml` en Python 3.13 à chaque push, `tests/test_phase3_etl.py` passé sur une fixture HDF5 | Les `.h5` ne sont pas dans le dépôt | `.github/workflows/tests.yml` |
+| 2026-11-10 | Étape 7 : README réécrit, ROADMAP marquée terminée avec renvoi à l'ADR-006 pour chaque phase abandonnée, `CHANGELOG.md`, squelette Prefect `src/pipelines/` supprimé avec l'accord du propriétaire | Clôture du projet, le squelette n'avait jamais été implémenté | [ADR-006](decisions/006-cloture-projet.md) |
