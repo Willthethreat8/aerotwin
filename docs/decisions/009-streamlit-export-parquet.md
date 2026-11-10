@@ -17,7 +17,9 @@ dernier cycle, la RUL réelle vaut 0 pour chaque moteur.
 
 ## Décision
 Streamlit multipage natif (`dashboard/app.py`, `dashboard/pages/`), Plotly, données lues uniquement depuis
-`data/dashboard/*.parquet`. DS02 n'apparaît que sur la page Modèle (ADR-010).
+`data/dashboard/*.parquet`. DS02 n'apparaît que sur la page Modèle (ADR-010). Matplotlib (images statiques, sans
+survol) et les graphiques natifs de Streamlit (barres d'erreur et sous-graphiques moins directs) ont été écartés au
+profit de Plotly, sans comparaison chiffrée.
 
 La page Flotte affiche, pour chaque moteur, son état au cycle observé : RUL prédite, statut, `hs`. Un moteur dont la
 vie est plus courte que ce cycle est marqué « Déposé (panne au cycle N) ». Le curseur démarre au cycle 60 : les

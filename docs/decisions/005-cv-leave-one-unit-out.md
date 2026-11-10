@@ -20,6 +20,8 @@ moteurs test officiels.
 - Avec si peu de moteurs, les métriques varient fortement d'un moteur à l'autre : RMSE CV 18.47 contre 11.79 en
   test sur DS01. Les métriques doivent être publiées par moteur, avec l'écart-type (étape 3).
 - Les prédictions hors échantillon de chaque moteur dev servent aussi au dashboard (étape 4).
+- Note du 2026-11-10 : avec les versions figées (ADR-012), `python -m src.train --all` donne sur DS01 un RMSE moyen
+  par moteur de 18,38 en CV et 11,89 en test. Les valeurs 18.47 et 11.79 ci-dessus restent celles de la baseline initiale.
 
 ## Sources
 - Commit `c53fd57`, `src/train.py` (`cross_validate`).
