@@ -3,9 +3,13 @@
 Généré par `python -m src.train --all`. Moyenne ± écart-type des métriques par moteur ; « tous cycles » est le
 RMSE calculé sur l'ensemble des cycles du split. CV : leave-one-unit-out sur les moteurs dev.
 
+DS02 sert uniquement à la comparaison à la littérature (ADR-010), avec le découpage publié. Nos erreurs sont
+calculées par cycle : la comparaison avec un RMSE calculé par pas de temps n'est pas directe.
+
 | DS | Mode de panne | Moteurs CV / test | RMSE CV | MAE CV | RMSE test | MAE test | RMSE test tous cycles |
 |---|---|---|---|---|---|---|---|
 | DS01 | HPT | 6 / 4 | 18.38 ± 3.02 | 14.38 ± 3.04 | 11.89 ± 2.01 | 9.50 ± 1.81 | 11.98 |
+| DS02 | HPT ou HPT+LPT | 6 / 3 | 11.15 ± 2.10 | 8.19 ± 1.22 | 13.80 ± 6.33 | 11.26 ± 6.18 | 15.24 |
 | DS03 | HPT+LPT | 9 / 6 | 12.87 ± 2.14 | 10.06 ± 1.91 | 11.55 ± 2.79 | 8.67 ± 1.74 | 12.12 |
 | DS04 | Fan | 6 / 4 | 24.75 ± 2.87 | 20.19 ± 2.58 | 23.60 ± 4.90 | 19.55 ± 4.49 | 24.39 |
 | DS05 | HPC | 6 / 4 | 16.55 ± 2.95 | 13.34 ± 2.55 | 14.34 ± 3.24 | 11.43 ± 2.19 | 14.63 |
@@ -26,6 +30,15 @@ RMSE calculé sur l'ensemble des cycles du split. CV : leave-one-unit-out sur le
 | DS01 | test | 8 | 89 | 10.31 | 7.94 |
 | DS01 | test | 9 | 80 | 14.38 | 11.91 |
 | DS01 | test | 10 | 82 | 10.21 | 8.27 |
+| DS02 | cv | 2 | 75 | 11.28 | 9.03 |
+| DS02 | cv | 5 | 89 | 13.93 | 9.18 |
+| DS02 | cv | 10 | 82 | 12.15 | 8.15 |
+| DS02 | cv | 16 | 63 | 12.12 | 9.08 |
+| DS02 | cv | 18 | 71 | 8.18 | 6.01 |
+| DS02 | cv | 20 | 66 | 9.27 | 7.68 |
+| DS02 | test | 11 | 59 | 7.76 | 5.89 |
+| DS02 | test | 14 | 76 | 20.39 | 18.01 |
+| DS02 | test | 15 | 67 | 13.25 | 9.87 |
 | DS03 | cv | 1 | 72 | 16.01 | 14.07 |
 | DS03 | cv | 2 | 73 | 9.96 | 7.91 |
 | DS03 | cv | 3 | 67 | 12.39 | 9.61 |

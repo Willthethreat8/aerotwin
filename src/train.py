@@ -121,6 +121,9 @@ def write_results(results: dict[str, dict]) -> None:
         "Généré par `python -m src.train --all`. Moyenne ± écart-type des métriques par moteur ; « tous cycles » est le",
         "RMSE calculé sur l'ensemble des cycles du split. CV : leave-one-unit-out sur les moteurs dev.",
         "",
+        "DS02 sert uniquement à la comparaison à la littérature (ADR-010), avec le découpage publié. Nos erreurs sont",
+        "calculées par cycle : la comparaison avec un RMSE calculé par pas de temps n'est pas directe.",
+        "",
         "| DS | Mode de panne | Moteurs CV / test | RMSE CV | MAE CV | RMSE test | MAE test | RMSE test tous cycles |",
         "|---|---|---|---|---|---|---|---|",
     ]

@@ -1,9 +1,10 @@
-"""Télécharge N-CMAPSS (NASA PCoE), extrait DS01 et DS03 à DS07, écrit docs/data.md.
+"""Télécharge N-CMAPSS (NASA PCoE), extrait DS01 à DS07, écrit docs/data.md.
 
-Usage : python -m scripts.download_ncmapss
+Usage : python -m scripts.download_ncmapss [--only DS02] [--margin-go 15]
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import re
 import shutil
@@ -56,9 +57,11 @@ def download(expected: int) -> None:
         sys.exit(f"Archive incomplète : {ARCHIVE.stat().st_size} octets au lieu de {expected}")
 
 
-def wanted(name: str) -> bool:
+def wanted(name: str, only: str | None = None) -> bool:
     match = re.match(r"N-CMAPSS_(DS\w+?)[-.]", Path(name).name)
-    return bool(match) and match.group(1) in config.NCMAPSS_FAULT_MODES and name.endswith(".h5")
+    if not match or not name.endswith(".h5"):
+        return False
+    return match.group(1) == only if only else match.group(1) in config.NCMAPSS_FAULT_MODES
 
 
 def file_sha256(path: Path) -> str:
@@ -69,15 +72,20 @@ def file_sha256(path: Path) -> str:
     return sha.hexdigest()
 
 
-def extract() -> tuple[list[tuple[str, int, str]], list[str]]:
+def extract(only: str | None = None, margin: int = MARGIN) -> tuple[list[tuple[str, int, str]], list[str]]:
     """Extrait les .h5 retenus sans écrire data_set.zip sur le disque. zipfile vérifie le CRC de chaque fichier lu."""
     config.NCMAPSS_DIR.mkdir(parents=True, exist_ok=True)
     rows, notes = [], []
     with zipfile.ZipFile(ARCHIVE) as outer, outer.open(INNER) as inner_file, zipfile.ZipFile(inner_file) as inner:
         names = [info.filename for info in inner.infolist()]
         print("Contenu de data_set.zip :", *names, sep="\n  ")
+        selected = [i for i in inner.infolist() if wanted(i.filename, only)]
+        needed = sum(i.file_size for i in selected) + margin
+        free = shutil.disk_usage(config.NCMAPSS_DIR).free
+        if free < needed:
+            sys.exit(f"Espace libre insuffisant : {free / 1e9:.1f} Go, il faut {needed / 1e9:.1f} Go")
         # Ordre des offsets : évite de relire l'archive depuis le début entre deux fichiers
-        for info in sorted((i for i in inner.infolist() if wanted(i.filename)), key=lambda i: i.header_offset):
+        for info in sorted(selected, key=lambda i: i.header_offset):
             dest = config.NCMAPSS_DIR / Path(info.filename).name
             # Un fichier déjà présent n'est remplacé que s'il diffère de la version officielle
             target = dest.with_name(dest.name + ".tmp") if dest.exists() else dest
@@ -112,6 +120,13 @@ def describe(ds_id: str) -> dict[str, object]:
     return stats
 
 
+def documented() -> tuple[list[tuple[str, int, str]], list[str]]:
+    """Lignes et notes déjà consignées dans docs/data.md, conservées lors d'une extraction partielle."""
+    text = DOC.read_text(encoding="utf-8")
+    rows = [(n, int(s), h) for n, s, h in re.findall(r"^\| (N-CMAPSS_\S+\.h5) \| (\d+) \| `([0-9a-f]{64})` \|$", text, re.M)]
+    return rows, re.findall(r"^N-CMAPSS_\S+\.h5 était déjà présent : .*$", text, re.M)
+
+
 def write_doc(rows: list[tuple[str, int, str]], notes: list[str]) -> None:
     lines = [
         "# Données N-CMAPSS",
@@ -142,12 +157,23 @@ def write_doc(rows: list[tuple[str, int, str]], notes: list[str]) -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Téléchargement et extraction de N-CMAPSS")
+    parser.add_argument("--only", choices=sorted(config.NCMAPSS_FAULT_MODES), help="Extrait ce seul fichier")
+    parser.add_argument("--margin-go", type=float, default=MARGIN / 1e9, help="Espace à laisser libre après extraction")
+    args = parser.parse_args()
+
     expected = remote_size()
     print(f"Archive : {expected / 1e9:.2f} Go")
     download(expected)
-    rows, notes = extract()
-    if len(rows) != len(config.NCMAPSS_FAULT_MODES):
-        sys.exit(f"{len(rows)} fichiers extraits au lieu de {len(config.NCMAPSS_FAULT_MODES)}")
+    rows, notes = extract(args.only, int(args.margin_go * 1e9))
+    count = 1 if args.only else len(config.NCMAPSS_FAULT_MODES)
+    if len(rows) != count:
+        sys.exit(f"{len(rows)} fichiers extraits au lieu de {count}")
+    if args.only:
+        old_rows, old_notes = documented()
+        new = {name for name, _, _ in rows}
+        rows = sorted(rows + [r for r in old_rows if r[0] not in new])
+        notes = notes + old_notes
     write_doc(rows, notes)
     print(f"Écrit {DOC}. L'archive {ARCHIVE} peut être supprimée.")
 

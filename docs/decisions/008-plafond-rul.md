@@ -18,7 +18,7 @@ Pas de plafond : `RUL_CAP = None` dans `src/train.py`, même règle pour tous le
 ## Conséquences
 - Le modèle prédit la RUL brute et les métriques sont calculées contre la RUL réelle.
 - La comparaison capped / uncapped disparaît de `src/train.py`.
-- La règle devra être revue pour DS02 (ADR-010) si sa RUL max dépasse 125, ce qui reste à relever après extraction.
+- DS02, ajouté par l'ADR-010, suit la même règle : sa RUL max vaut 88 en dev et 75 en test.
 
 ## Sources
 - `docs/data.md`.

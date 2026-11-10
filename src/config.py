@@ -13,15 +13,18 @@ DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
 
 # --- Dataset NASA N-CMAPSS ---
 NCMAPSS_DIR = DATA_RAW / "ncmapss"
-# Fichiers retenus (ADR-007) et composant(s) dégradé(s)
+# Fichiers retenus (ADR-010) et composant(s) dégradé(s)
 NCMAPSS_FAULT_MODES = {
     "DS01": "HPT",
+    "DS02": "HPT ou HPT+LPT",
     "DS03": "HPT+LPT",
     "DS04": "Fan",
     "DS05": "HPC",
     "DS06": "LPC+HPC",
     "DS07": "LPT",
 }
+# Absent de la page Flotte, visible seulement sur la page Modèle (ADR-010)
+NCMAPSS_COMPARISON_ONLY = {"DS02"}
 
 # C-MAPSS FD001, plus utilisé depuis ADR-002
 CMAPSS_COLUMNS = (
