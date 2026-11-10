@@ -12,6 +12,8 @@ dernier cycle, la RUL réelle vaut 0 pour chaque moteur.
 - Export Parquet par `src/export_dashboard.py`, lu par Streamlit avec `st.cache_data`.
 - Page Flotte au dernier cycle : tous les moteurs seraient Critique, la page ne dirait rien.
 - Page Flotte à un cycle observé choisi par curseur.
+- Seuils sur la RUL prédite brute : avec un RMSE test de 23.60, les moteurs DS04 passeraient en Critique trop tard.
+- Seuils sur une RUL prudente, qui retire l'erreur du modèle propre à chaque fichier.
 
 ## Décision
 Streamlit multipage natif (`dashboard/app.py`, `dashboard/pages/`), Plotly, données lues uniquement depuis
@@ -19,18 +21,21 @@ Streamlit multipage natif (`dashboard/app.py`, `dashboard/pages/`), Plotly, donn
 
 La page Flotte affiche, pour chaque moteur, son état au cycle observé : RUL prédite, statut, `hs`. Un moteur dont la
 vie est plus courte que ce cycle est marqué « Déposé (panne au cycle N) ». Le curseur démarre au cycle 60 : les
-durées de vie vont de 59 à 100 cycles (médiane 80), et les quatre statuts y sont visibles.
+durées de vie vont de 59 à 100 cycles (médiane 80), et les quatre statuts y sont visibles (26 Critique, 25 Attention,
+13 OK, 1 Déposé).
 
-Seuils appliqués à la RUL prédite, identiques pour tous les fichiers : Critique sous 15 cycles, Attention sous 30,
-OK au-delà. Le RMSE test moyen par moteur vaut de 11.55 à 14.66 sur cinq des six fichiers de la flotte : sous
-15 cycles, la RUL prédite n'est plus nettement supérieure à l'erreur typique du modèle. Le seuil de 30 en est environ
-le double et laisse une marge d'alerte. Ces seuils sont simples et non calibrés sur un coût opérationnel.
+Les seuils s'appliquent à une estimation prudente : RUL prédite moins le RMSE test moyen par moteur de son fichier
+(`summary.parquet`). Critique si cette valeur passe sous 15 cycles, Attention sous 30, OK au-delà. En maintenance, une
+alerte manquée coûte plus qu'une fausse alerte : le seuil tient donc compte de l'erreur du modèle propre à chaque mode
+de panne, de 11.55 à 23.60 cycles selon le fichier. Ces seuils sont simples et non calibrés sur un coût opérationnel.
 
 ## Conséquences
 - Le dashboard fonctionne sans `.h5` ni secret ; `dashboard/requirements.txt` limite le déploiement à quatre paquets.
 - Démarrage mesuré en local : environ 2,5 s entre le lancement du serveur et le rendu de la page Flotte.
-- DS04 (Fan) a un RMSE test moyen de 23.60 : avec les mêmes seuils, ses moteurs passent en Critique trop tard
-  par rapport à l'erreur du modèle. La page Modèle montre cet écart.
+- Les alertes sont plus nombreuses : au cycle 60, 26 moteurs sont Critique contre 10 avec la RUL prédite brute. La
+  règle accepte davantage de fausses alertes pour en manquer moins.
+- Le RMSE test sert de marge d'affichage. Il est estimé sur les moteurs test eux-mêmes : la règle n'a pas été évaluée
+  séparément.
 - Le statut reflète une prédiction du modèle sur données simulées, pas une décision de maintenance.
 
 ## Sources

@@ -265,6 +265,18 @@ aerotwin_project/
 
 ---
 
+## Déploiement sur Streamlit Community Cloud
+
+Dans Community Cloud, créer une application avec les réglages suivants :
+
+- Dépôt : `Willthethreat8/Data_project`, branche `main`.
+- Fichier principal : `dashboard/app.py`.
+- Advanced settings : choisir Python 3.13 (Community Cloud propose 3.12 par défaut). Laisser le champ Secrets vide : le dashboard n'utilise aucun secret.
+
+Community Cloud installe automatiquement `dashboard/requirements.txt`, car il cherche le fichier de dépendances d'abord à côté du point d'entrée. Le thème est lu dans `.streamlit/config.toml`, à la racine du dépôt. Les données viennent de `data/dashboard/*.parquet`, versionnés dans le dépôt : aucun `.h5` n'est nécessaire.
+
+---
+
 ## Documents
 
 - [Feuille de route détaillée & décisions techniques (ROADMAP.md)](ROADMAP.md)

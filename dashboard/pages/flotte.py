@@ -19,14 +19,15 @@ def charger(nom: str) -> pd.DataFrame:
     return pd.read_parquet(DATA / f"{nom}.parquet")
 
 
-def etat_flotte(cycles: pd.DataFrame, observe: int) -> pd.DataFrame:
+def etat_flotte(cycles: pd.DataFrame, observe: int, rmse_test: pd.Series) -> pd.DataFrame:
     """Une ligne par moteur : son état au cycle observé, ou Déposé si sa vie est plus courte."""
     moteurs = cycles.groupby(["ds_id", "fault_mode", "unit", "split"], as_index=False)["cycle"].max()
     moteurs = moteurs.rename(columns={"cycle": "panne"})
     a_ce_cycle = cycles.loc[cycles["cycle"] == observe, ["ds_id", "unit", "rul_pred", "hs"]]
     etat = moteurs.merge(a_ce_cycle, how="left", on=["ds_id", "unit"])
+    etat["rul_prudente"] = etat["rul_pred"] - etat["ds_id"].map(rmse_test)
     etat["statut"] = pd.cut(
-        etat["rul_pred"], bins=[float("-inf"), SEUIL_CRITIQUE, SEUIL_ATTENTION, float("inf")],
+        etat["rul_prudente"], bins=[float("-inf"), SEUIL_CRITIQUE, SEUIL_ATTENTION, float("inf")],
         right=False, labels=["Critique", "Attention", "OK"],
     ).astype(object).where(etat["rul_pred"].notna(), "Déposé")
     return etat
@@ -54,25 +55,27 @@ def repartition(etat: pd.DataFrame) -> go.Figure:
 
 def tableau(etat: pd.DataFrame):
     ordre = etat["statut"].map({s: i for i, s in enumerate(STATUTS)})
-    lignes = etat.assign(_ordre=ordre).sort_values(["_ordre", "rul_pred", "panne"])
+    lignes = etat.assign(_ordre=ordre).sort_values(["_ordre", "rul_prudente", "panne"])
     deposes = lignes["statut"] == "Déposé"
     vue = pd.DataFrame({
         "Fichier": lignes["ds_id"],
         "Mode de panne": lignes["fault_mode"],
         "Moteur": lignes["unit"],
         "Jeu": lignes["split"],
-        # Le modèle peut prédire une RUL légèrement négative près de la panne
+        # Une RUL négative n'a pas de sens à l'affichage
         "RUL prédite (cycles)": lignes["rul_pred"].clip(lower=0).round(0),
+        "RUL prudente (cycles)": lignes["rul_prudente"].clip(lower=0).round(0),
         "Statut": lignes["statut"].where(~deposes, "Déposé (panne au cycle " + lignes["panne"].astype(str) + ")"),
         "État de santé (hs)": lignes["hs"].map({1: "Sain", 0: "Dégradé"}).fillna(""),
     })
-    return vue.style.format({"RUL prédite (cycles)": "{:.0f}"}, na_rep="").map(
+    return vue.style.format({"RUL prédite (cycles)": "{:.0f}", "RUL prudente (cycles)": "{:.0f}"}, na_rep="").map(
         lambda valeur: f"background-color: {FONDS[valeur.split(' (')[0]]}; color: #0b0b0b", subset=["Statut"],
     )
 
 
 cycles = charger("cycles")
 cycles = cycles[cycles["in_fleet"]]
+rmse_test = charger("summary").set_index("ds_id")["test_rmse_mean"]
 
 st.title("Flotte")
 
@@ -90,7 +93,7 @@ if selection.empty:
 
 dernier = int(selection["cycle"].max())
 observe = st.slider("Cycle observé", min_value=1, max_value=dernier, value=min(CYCLE_INITIAL, dernier))
-etat = etat_flotte(selection, observe)
+etat = etat_flotte(selection, observe, rmse_test)
 
 comptes = etat["statut"].value_counts()
 for colonne, statut in zip(st.columns(4), STATUTS):
@@ -100,8 +103,8 @@ st.plotly_chart(repartition(etat), theme=None, width="stretch")
 st.dataframe(tableau(etat), hide_index=True, width="stretch", height=460)
 
 st.caption(
-    f"Statut selon la RUL prédite : Critique sous {SEUIL_CRITIQUE} cycles, Attention sous {SEUIL_ATTENTION} cycles, "
-    "OK au-delà (ADR-009). Déposé : le moteur est arrivé à la panne avant le cycle observé. Moteurs dev : prédiction "
+    "RUL prudente : RUL prédite moins le RMSE test du fichier. Statut selon la RUL prudente : "
+    f"Critique sous {SEUIL_CRITIQUE} cycles, Attention sous {SEUIL_ATTENTION} cycles, OK au-delà (ADR-009). Déposé : le moteur est arrivé à la panne avant le cycle observé. Moteurs dev : prédiction "
     "du modèle entraîné sans ce moteur. Moteurs test : prédiction du modèle final. L'état de santé hs est le label "
     "fourni par la simulation."
 )
