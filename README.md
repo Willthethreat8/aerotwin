@@ -141,7 +141,7 @@ Le dashboard et les tests fonctionnent sans télécharger les données, à parti
 
 Dans Community Cloud, créer une application avec les réglages suivants :
 
-- Dépôt : `Willthethreat8/Data_project`, branche `main`.
+- Dépôt : `Willthethreat8/aerotwin`, branche `main`.
 - Fichier principal : `dashboard/app.py`.
 - Advanced settings : choisir Python 3.13 (Community Cloud propose 3.12 par défaut). Laisser le champ Secrets vide : le dashboard n'utilise aucun secret.
 
