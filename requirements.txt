@@ -12,9 +12,6 @@ psycopg2-binary==2.9.13
 # --- Lecture HDF5 (N-CMAPSS) ---
 h5py==3.16.0
 
-# --- Versioning données (DVC) ---
-dvc==3.67.1
-
 # --- API & parsing météo ---
 requests==2.34.2
 metar==2.0.2

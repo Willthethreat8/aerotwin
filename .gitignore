@@ -8,7 +8,7 @@ __pycache__/
 # Secrets et variables d'environnement (ne jamais committer)
 .env
 
-# Données brutes volumineuses — trackées par DVC, pas Git
+# Données brutes volumineuses, hors Git
 data/raw/**/*.h5
 data/raw/*.h5
 data/raw/*.txt
