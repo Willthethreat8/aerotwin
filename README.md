@@ -101,7 +101,7 @@ timeline
     title AeroTwin
     2026-03 : Infrastructure Docker PostGIS : EDA C-MAPSS FD001 : Ingestion trajectoires et météo
     2026-09 : Pivot vers N-CMAPSS DS01 : ETL src/ : Baseline XGBoost
-    2026-11 : Audit : Décision de clôture : Extension DS01, DS03 à DS07 : Incident iCloud : Modèle par fichier : Ajout de DS02 pour comparaison : Export Parquet du dashboard : Dashboard Streamlit : CI GitHub Actions : Documentation finale : Nettoyage de l'historique
+    2026-11 : Audit : Décision de clôture : Extension DS01, DS03 à DS07 : Incident iCloud : Modèle par fichier : Ajout de DS02 pour comparaison : Export Parquet du dashboard : Dashboard Streamlit : CI GitHub Actions : Documentation finale : Nettoyage de l'historique : Déploiement et clôture v1.0
 ```
 
 ## Stack technique

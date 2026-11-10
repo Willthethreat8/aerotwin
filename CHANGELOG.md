@@ -2,9 +2,9 @@
 
 Les changements notables du projet sont consignés dans ce fichier.
 
-Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Le contenu ci-dessous constituera la version `1.0` une fois le tag posé.
+Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/).
 
-## [Unreleased]
+## [1.0.0] - 2026-11-10
 
 ### Added
 
@@ -43,3 +43,5 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Le cont
 - Nom de colonne `alt` au lieu de `altitude`.
 - Référence « RMSE 36.89 » retirée : elle venait d'un projet FD001 en split aléatoire, non comparable.
 - `.gitignore` complété.
+
+[1.0.0]: https://github.com/Willthethreat8/aerotwin/releases/tag/v1.0

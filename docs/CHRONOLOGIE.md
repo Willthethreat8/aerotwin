@@ -5,7 +5,7 @@ timeline
     title AeroTwin
     2026-03 : Infrastructure Docker PostGIS : EDA C-MAPSS FD001 : Ingestion trajectoires et météo
     2026-09 : Pivot vers N-CMAPSS DS01 : ETL src/ : Baseline XGBoost
-    2026-11 : Audit : Décision de clôture : Extension DS01, DS03 à DS07 : Incident iCloud : Modèle par fichier : Ajout de DS02 pour comparaison : Export Parquet du dashboard : Dashboard Streamlit : CI GitHub Actions : Documentation finale : Nettoyage de l'historique
+    2026-11 : Audit : Décision de clôture : Extension DS01, DS03 à DS07 : Incident iCloud : Modèle par fichier : Ajout de DS02 pour comparaison : Export Parquet du dashboard : Dashboard Streamlit : CI GitHub Actions : Documentation finale : Nettoyage de l'historique : Déploiement et clôture v1.0
 ```
 
 | Date | Changement | Pourquoi | Référence |
@@ -35,3 +35,4 @@ timeline
 | 2026-11-10 | Étape 6 : workflow `.github/workflows/tests.yml` en Python 3.13 à chaque push, `tests/test_phase3_etl.py` passé sur une fixture HDF5 | Les `.h5` ne sont pas dans le dépôt | `.github/workflows/tests.yml` |
 | 2026-11-10 | Étape 7 : README réécrit, ROADMAP marquée terminée avec renvoi à l'ADR-006 pour chaque phase abandonnée, `CHANGELOG.md`, squelette Prefect `src/pipelines/` supprimé avec l'accord du propriétaire | Clôture du projet, le squelette n'avait jamais été implémenté | [ADR-006](decisions/006-cloture-projet.md) |
 | 2026-11-10 | Historique réécrit avant publication : adresses e-mail, chemins personnels, mot de passe local de développement et mentions d'outils retirés, sauvegarde conservée hors du dépôt. Références de commits mises à jour, DVC retiré, ADR-011 à ADR-013 ajoutés | Dépôt rendu public ; justifier les choix techniques restés sans ADR | [ADR-011](decisions/011-modele-xgboost.md), [ADR-012](decisions/012-environnement-ci.md), [ADR-013](decisions/013-trajectoires-meteo.md) |
+| 2026-11-10 | Dashboard déployé sur Streamlit Community Cloud par le propriétaire (https://aerotwin-sirngoma.streamlit.app), section déploiement retirée du README, CHANGELOG en 1.0.0, tag `v1.0` | Clôture du projet | [ADR-006](decisions/006-cloture-projet.md), [CHANGELOG](../CHANGELOG.md) |
