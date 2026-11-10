@@ -5,7 +5,7 @@ timeline
     title AeroTwin
     2026-03 : Infrastructure Docker PostGIS : EDA C-MAPSS FD001 : Ingestion trajectoires et météo
     2026-09 : Pivot vers N-CMAPSS DS01 : ETL src/ : Baseline XGBoost
-    2026-11 : Audit : Décision de clôture : Extension DS01, DS03 à DS07 : Incident iCloud : Modèle par fichier : Ajout de DS02 pour comparaison
+    2026-11 : Audit : Décision de clôture : Extension DS01, DS03 à DS07 : Incident iCloud : Modèle par fichier : Ajout de DS02 pour comparaison : Export Parquet du dashboard
 ```
 
 | Date | Changement | Pourquoi | Référence |
@@ -27,3 +27,6 @@ timeline
 | 2026-11-09 | Étape 3 : un modèle XGBoost par fichier (`python -m src.train --all`), métriques par moteur et écart-type, suppression du plafond RUL, retrait des rolling features sur `RUL`, nettoyage des commentaires | Métriques honnêtes par moteur, un modèle par mode de panne | [ADR-008](decisions/008-plafond-rul.md), [resultats.md](resultats.md) |
 | 2026-11-10 | Extraction de DS02 seul (marge de 10 Go autorisée pour cette extraction, SHA-256 consigné), unités conformes au découpage publié, modèle DS02 ajouté aux résultats, absent de la page Flotte | Comparaison à la littérature | [ADR-010](decisions/010-ajout-ds02.md), [data.md](data.md), [resultats.md](resultats.md) |
 | 2026-11-10 | Dépendances directes figées dans `requirements.txt`, CI prévue en Python 3.13, résultats régénérés avec ces versions | Rendre les chiffres publiés reproductibles | [resultats.md](resultats.md) |
+| 2026-11-10 | Archive `ncmapss_archive.zip` supprimée avec l'accord du propriétaire, les sept `.h5` extraits et contrôlés étant conservés | Libérer 15,8 Go | [data.md](data.md) |
+| 2026-11-10 | Paragraphe « Situation par rapport à la littérature » dans `docs/resultats.md`, chiffres du préprint arXiv:2003.00732v2 cités comme préprint, hors du tableau de nos résultats | Situer la baseline sans comparaison trompeuse (RMSE par pas de temps contre RMSE par cycle) | [ADR-010](decisions/010-ajout-ds02.md), [ADR-006](decisions/006-cloture-projet.md), [resultats.md](resultats.md) |
+| 2026-11-10 | Étape 4 : `python -m src.export_dashboard` écrit `data/dashboard/*.parquet` (prédictions par cycle, métriques, importances), prédictions hors échantillon pour les moteurs dev, DS02 marqué hors flotte | Le dashboard ne lit jamais le HDF5 | [resultats.md](resultats.md) |

@@ -33,6 +33,9 @@ scikit-learn==1.9.1
 xgboost==3.4.1
 mlflow==3.18.0
 
+# --- Export du dashboard ---
+pyarrow==26.0.1
+
 # --- Roadmap (décommenter au fur et à mesure des phases) ---
 # prefect            # Phase 3 — orchestration
 # dbt-core           # Phase 3 — transformations SQL
