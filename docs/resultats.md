@@ -3,8 +3,7 @@
 Généré par `python -m src.train --all`. Moyenne ± écart-type des métriques par moteur ; « tous cycles » est le
 RMSE calculé sur l'ensemble des cycles du split. CV : leave-one-unit-out sur les moteurs dev.
 
-DS02 sert uniquement à la comparaison à la littérature (ADR-010), avec le découpage publié. Nos erreurs sont
-calculées par cycle : la comparaison avec un RMSE calculé par pas de temps n'est pas directe.
+DS02 sert uniquement à la comparaison à la littérature (ADR-010), avec le découpage publié.
 
 | DS | Mode de panne | Moteurs CV / test | RMSE CV | MAE CV | RMSE test | MAE test | RMSE test tous cycles |
 |---|---|---|---|---|---|---|---|
@@ -15,6 +14,23 @@ calculées par cycle : la comparaison avec un RMSE calculé par pas de temps n'e
 | DS05 | HPC | 6 / 4 | 16.55 ± 2.95 | 13.34 ± 2.55 | 14.34 ± 3.24 | 11.43 ± 2.19 | 14.63 |
 | DS06 | LPC+HPC | 6 / 4 | 16.24 ± 3.52 | 12.85 ± 2.69 | 14.36 ± 2.55 | 11.74 ± 2.10 | 14.54 |
 | DS07 | LPT | 6 / 4 | 16.89 ± 2.54 | 13.31 ± 1.79 | 14.66 ± 1.81 | 11.35 ± 1.02 | 14.79 |
+
+## Situation par rapport à la littérature
+
+Les approches deep learning publiées sur ce découpage de DS02 obtiennent des erreurs nettement plus faibles que
+notre baseline : RMSE test de 7.89 ± 0.12 (FNN) et 4.95 ± 0.15 (CNN) sur données seules, 4.22 ± 0.10 (FNN) et
+4.14 ± 0.09 (CNN) en approche hybride. Leur RMSE est calculé par pas de temps (échantillons à 0,1 Hz), avec un
+écart-type sur 5 exécutions ; le nôtre est calculé par cycle, avec un écart-type entre moteurs. La comparaison
+n'est donc pas directe. Notre baseline XGBoost sur agrégats par cycle n'a pas cherché à les égaler : c'est un
+choix de périmètre (ADR-006).
+
+Source des chiffres : Arias Chao, M. ; Kulkarni, C. ; Goebel, K. ; Fink, O. Fusing Physics-based and Deep
+Learning Models for Prognostics. Préprint arXiv:2003.00732v2, 27 octobre 2020, table 5.
+https://arxiv.org/abs/2003.00732
+
+Version publiée, non consultée : Arias Chao, M. ; Kulkarni, C. ; Goebel, K. ; Fink, O. Fusing physics-based and
+deep learning models for prognostics. Reliability Engineering & System Safety, vol. 217, art. 107961, janvier
+2022. https://doi.org/10.1016/j.ress.2021.107961
 
 ## Par moteur
 

@@ -33,7 +33,9 @@ référence complète et s'il utilise le même découpage.
   par défaut du script reste 15 Go. Commande :
   `SSL_CERT_FILE="$(venv/bin/python -m certifi)" python -m scripts.download_ncmapss --only DS02 --margin-go 10`.
 - La publication de référence définit le RMSE et le score NASA mais ne publie aucun résultat RUL chiffré : elle ne
-  fournit donc pas de valeur à comparer.
+  fournit donc pas de valeur à comparer. Les chiffres cités dans `docs/resultats.md` viennent du préprint
+  arXiv:2003.00732v2, présenté comme tel, hors du tableau de nos résultats ; la version publiée en 2022 n'a pas pu
+  être consultée.
 - La RUL max de DS02 vaut 88 en dev et 75 en test : la règle sans plafond de l'ADR-008 s'applique.
 
 ## Sources
