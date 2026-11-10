@@ -18,7 +18,7 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Le cont
 - Export `src/export_dashboard.py` vers `data/dashboard/*.parquet`.
 - Dashboard Streamlit à trois pages (Flotte, Moteur, Modèle) et `dashboard/requirements.txt` pour Community Cloud.
 - CI GitHub Actions : Pytest sur Python 3.13 à chaque push, sur fixtures uniquement.
-- Documentation : ADR-001 à ADR-010, `docs/CHRONOLOGIE.md`, `docs/data.md`, captures dans `docs/img/`.
+- Documentation : ADR-001 à ADR-013, `docs/CHRONOLOGIE.md`, `docs/data.md`, captures dans `docs/img/`.
 
 ### Changed
 
@@ -34,6 +34,7 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Le cont
 - Plafond RUL à 125, sans effet sur ces données (ADR-008), et la comparaison capped / uncapped.
 - Notebooks 01 à 04 et traitement de FD001 (ADR-002).
 - Squelette Prefect `src/pipelines/`, jamais implémenté.
+- Dépendance DVC, jamais utilisée.
 - Phases 7 à 9 de la feuille de route : streaming, API et cloud, IA générative (ADR-006).
 
 ### Fixed

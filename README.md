@@ -99,8 +99,31 @@ timeline
     title AeroTwin
     2026-03 : Infrastructure Docker PostGIS : EDA C-MAPSS FD001 : Ingestion trajectoires et météo
     2026-09 : Pivot vers N-CMAPSS DS01 : ETL src/ : Baseline XGBoost
-    2026-11 : Audit : Décision de clôture : Extension DS01, DS03 à DS07 : Incident iCloud : Modèle par fichier : Ajout de DS02 pour comparaison : Export Parquet du dashboard : Dashboard Streamlit : CI GitHub Actions : Documentation finale
+    2026-11 : Audit : Décision de clôture : Extension DS01, DS03 à DS07 : Incident iCloud : Modèle par fichier : Ajout de DS02 pour comparaison : Export Parquet du dashboard : Dashboard Streamlit : CI GitHub Actions : Documentation finale : Nettoyage de l'historique
 ```
+
+## Stack technique
+
+| Outil | Version | Rôle | ADR |
+|---|---|---|---|
+| Python | 3.13 | Langage du projet, de la CI et du déploiement | [012](docs/decisions/012-environnement-ci.md) |
+| XGBoost | 3.4.1 | Modèle de RUL par fichier | [011](docs/decisions/011-modele-xgboost.md) |
+| scikit-learn | 1.9.1 | Validation croisée leave-one-unit-out | [005](docs/decisions/005-cv-leave-one-unit-out.md) |
+| pandas | 3.1.1 | Agrégation par cycle et tables | [003](docs/decisions/003-agregation-cycle.md) |
+| NumPy | 2.5.4 | Calcul numérique et métriques | [003](docs/decisions/003-agregation-cycle.md) |
+| h5py | 3.16.0 | Lecture du HDF5 N-CMAPSS | [002](docs/decisions/002-abandon-fd001-ncmapss.md) |
+| MLflow | 3.18.0 | Suivi local des expériences | [012](docs/decisions/012-environnement-ci.md) |
+| Streamlit | 1.67.0 | Dashboard à trois pages | [009](docs/decisions/009-streamlit-export-parquet.md) |
+| Plotly | 7.1.0 | Graphiques du dashboard | [009](docs/decisions/009-streamlit-export-parquet.md) |
+| PyArrow | 26.0.1 | Export et lecture des Parquet | [009](docs/decisions/009-streamlit-export-parquet.md) |
+| pytest | 9.2.0 | Tests sur fixtures | [012](docs/decisions/012-environnement-ci.md) |
+| GitHub Actions | sans objet | CI Pytest à chaque push | [012](docs/decisions/012-environnement-ci.md) |
+| JupyterLab | 4.6.6 | Exploration de N-CMAPSS | [002](docs/decisions/002-abandon-fd001-ncmapss.md) |
+| Docker, PostGIS | postgis/postgis:15-3.3 | Stockage de la chaîne ETL optionnelle | [001](docs/decisions/001-docker-postgis.md) |
+| SQLAlchemy, GeoAlchemy2, psycopg2 | 2.1.8, 0.21.0, 2.9.13 | Chargement dans PostGIS | [001](docs/decisions/001-docker-postgis.md) |
+| python-dotenv | 1.2.4 | Identifiants hors du code, dans `.env` | [001](docs/decisions/001-docker-postgis.md) |
+| GeoPandas, Shapely | 1.2.0, 2.2.0 | Trajectoires simulées, hors modèle | [013](docs/decisions/013-trajectoires-meteo.md) |
+| requests, metar | 2.34.2, 2.0.2 | Météo Open-Meteo et METAR, hors modèle | [013](docs/decisions/013-trajectoires-meteo.md) |
 
 ## Décisions d'architecture
 
@@ -116,6 +139,9 @@ timeline
 | [008](docs/decisions/008-plafond-rul.md) | Suppression du plafond RUL | Acceptée |
 | [009](docs/decisions/009-streamlit-export-parquet.md) | Streamlit + export Parquet | Acceptée |
 | [010](docs/decisions/010-ajout-ds02.md) | Ajout de DS02 pour comparaison à la littérature | Acceptée |
+| [011](docs/decisions/011-modele-xgboost.md) | Modèle XGBoost, hyperparamètres fixes, un modèle par fichier | Acceptée |
+| [012](docs/decisions/012-environnement-ci.md) | MLflow local, Python 3.13, dépendances figées, CI sur fixtures | Acceptée |
+| [013](docs/decisions/013-trajectoires-meteo.md) | Trajectoires simulées et météo écartées du modèle et du dashboard | Acceptée |
 
 ## Reproduire les résultats
 
