@@ -163,15 +163,7 @@ Avec le Python de python.org sur macOS, le téléchargement demande de préfixer
 
 Le dashboard et les tests fonctionnent sans télécharger les données, à partir des Parquet versionnés. La chaîne ETL vers PostGIS (`docker compose up -d`, `.env` à créer depuis `.env.example`, puis `python -m src.pipeline --ds DS01 --split dev`) reste disponible mais n'est pas nécessaire au modèle.
 
-## Déploiement sur Streamlit Community Cloud
 
-Dans Community Cloud, créer une application avec les réglages suivants :
-
-- Dépôt : `Willthethreat8/aerotwin`, branche `main`.
-- Fichier principal : `dashboard/app.py`.
-- Advanced settings : choisir Python 3.13 (Community Cloud propose 3.12 par défaut). Laisser le champ Secrets vide : le dashboard n'utilise aucun secret.
-
-Community Cloud installe automatiquement `dashboard/requirements.txt`, car il cherche le fichier de dépendances d'abord à côté du point d'entrée. Le thème est lu dans `.streamlit/config.toml`, à la racine du dépôt. Les données viennent de `data/dashboard/*.parquet`, versionnés dans le dépôt : aucun `.h5` n'est nécessaire.
 
 ## Documents
 
