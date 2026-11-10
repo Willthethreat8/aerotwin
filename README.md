@@ -4,6 +4,8 @@ AeroTwin predicts the remaining useful life (RUL) of turbofan engines on NASA's 
 Results are reported per engine with the between-engine standard deviation; DS02 is included only for comparison with published work.
 A three-page Streamlit dashboard reads precomputed Parquet files. The project was closed in November 2026.
 
+**Démo : https://aerotwin-sirngoma.streamlit.app** (l'application peut mettre une minute à se réveiller si elle n'a pas été utilisée récemment).
+
 **Statut : Projet terminé (novembre 2026)**
 
 ## Ce que fait le projet
@@ -142,6 +144,16 @@ timeline
 | [011](docs/decisions/011-modele-xgboost.md) | Modèle XGBoost, hyperparamètres fixes, un modèle par fichier | Acceptée |
 | [012](docs/decisions/012-environnement-ci.md) | MLflow local, Python 3.13, dépendances figées, CI sur fixtures | Acceptée |
 | [013](docs/decisions/013-trajectoires-meteo.md) | Trajectoires simulées et météo écartées du modèle et du dashboard | Acceptée |
+
+## Lancer en local
+
+Depuis la racine du dépôt, sans télécharger les données :
+
+```bash
+python3.13 -m venv venv && source venv/bin/activate
+pip install -r dashboard/requirements.txt
+streamlit run dashboard/app.py
+```
 
 ## Reproduire les résultats
 
